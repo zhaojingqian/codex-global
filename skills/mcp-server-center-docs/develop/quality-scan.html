@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>MCP 质量扫描</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>MCP 质量扫描</span>
+</nav>
+
+<h1>MCP 质量扫描</h1>
+<div class="meta">更新: 飞超 · 更新时间: 2026-01-25</div>
+<h2 id="overview">概述</h2>
+
+<p>MCP（Model Context Protocol）质量扫描是 Aone 开放平台提供的一项自动化质量评估服务，旨在帮助开发者提升 MCP 服务的质量和安全性。通过多维度的智能检查，确保 MCP 服务能够为用户提供稳定、安全、易用的 AI 工具体验。</p>
+
+<h2 id="why">为什么要做 MCP 质量扫描</h2>
+
+<p>模型使用 MCP 的核心流程是：理解用户需求 → 从可用 MCP 中选择合适工具 → 组装参数并执行调用。这个过程中有两个比较关键的点：</p>
+<ol>
+  <li><strong>MCP 工具选择准确度</strong>——模型能否准确理解并选择正确的工具，这很大程度上取决于 MCP 工具的描述信息质量</li>
+  <li><strong>MCP 工具参数组装</strong>——模型能够组装正确的工具参数，这很大程度上取决于 MCP 工具参数的结构以及描述信息的质量</li>
+</ol>
+
+<p>然而，在 Aone MCP Market 建设发展过程中，我们发现很多的 MCP 服务/工具的描述、参数说明等内容缺失或不足以说明其用途和功能。人都很难理解，对于大模型来说可能也很难理解。</p>
+
+<p>基于这些原因，Aone 开放平台推出了 MCP 质量扫描服务，期望基于一套约定的 <strong>MCP 质量规范</strong>，以及自动化的检测来提升 MCP 生态质量。</p>
+
+<h2 id="spec">MCP 质量规范</h2>
+
+<p>MCP 的质量将从稳定性、安全性、易用性三方面评估：</p>
+<ul>
+  <li><strong>稳定性</strong>：决定 MCP Server 是否能可靠运行，调用失败、超时等问题是需要关注的重点</li>
+  <li><strong>安全性</strong>：决定 MCP Server 是否能安全使用，各类可能出现的漏洞、风险是需要关注的重点</li>
+  <li><strong>易用性</strong>：决定 MCP Server 是否好用，各种参数的描述信息、隔离性是需要关注的重点</li>
+</ul>
+
+<h3 id="稳定性-stability">稳定性（STABILITY）</h3>
+
+<table>
+  <tbody>
+    <tr><td><strong>STB-1</strong>：【MCP Server 服务可用】能被 MCP Client 正常连接，至少包含 1 个 Tool</td></tr>
+    <tr><td><strong>STB-2</strong>：【MCP Tool 调用成功率】MCP Tool Calls 成功率 &gt;= 98%</td></tr>
+    <tr><td><strong>STB-3</strong>：【MCP Tool 功能性测试】基于预先配置的测试用例，判断单个 Tool 运行是否符合预期</td></tr>
+  </tbody>
+</table>
+
+<h3 id="安全性-security">安全性（SECURITY）</h3>
+
+<table>
+  <tbody>
+    <tr><td><strong>SEC-1</strong>：【MCP Server 相似性】范围全员可见的 MCP Server 的名称和描述不可与其他 MCP Server 相同/相似，避免用户错误识别</td></tr>
+    <tr><td><strong>SEC-2</strong>：【MCP Tool 描述安全】Tool 描述中无隐藏指令、Tool 描述中不可重新定义其他 MCP Tool 的行为</td></tr>
+    <tr><td><strong>SEC-3</strong>：【MCP Tool 参数安全】Tool input &amp; output 参数不允许包括 token、secret 这种私密的信息，避免泄露</td></tr>
+  </tbody>
+</table>
+
+<h3 id="易用性-usability">易用性（USABILITY）</h3>
+
+<table>
+  <tbody>
+    <tr><td><strong>USB-1</strong>：【MCP Server 基本信息完备】MCP Server 名称和描述需要清晰，并准确说明核心功能；提供详细的使用文档</td></tr>
+    <tr><td><strong>USB-2</strong>：【MCP Tool 描述】Tool 名称与描述要相匹配，清晰、准确表达能力；描述中包含示例</td></tr>
+    <tr><td><strong>USB-3</strong>：【MCP Tool 参数】出/入参数名称和描述清晰一致；提供 outputSchema 帮助 Client &amp; LLM 理解结构化输出</td></tr>
+    <tr><td><strong>USB-4</strong>：【MCP Tool Annotation】使用 Tool <a href="https://modelcontextprotocol.io/docs/concepts/tools#tool-annotations">Annotation</a> 标注是否可读、幂等、执行破坏性操作等</td></tr>
+  </tbody>
+</table>
+
+<h2 id="flow">MCP 质量扫描操作流程</h2>
+
+<h3 id="发起质量扫描">发起质量扫描</h3>
+
+<p>平台上点击「发布预发」后，会自动触发「MCP 质量检测」。</p>
+
+<div class="panel small">注意：为节省资源，多次触发，会自动取消前面触发的质量检测任务，发布过程中始终只会用到最新一次的质量扫描结果。</div>
+
+<h3 id="查看扫描状态和结果">查看扫描状态和结果</h3>
+
+<p>点击「质量检测」节点，可以看到质量扫描的「运行情况」和「运行结果」。</p>
+
+<p>在<strong>「运行情况」</strong>Tab 下，我们可以看到整体的进度，上面提到的「MCP 质量规范」在系统中通过「MCP 质量插件」的形式承接落地。</p>
+
+<p>在<strong>「运行结果」</strong>Tab 下，我们可以看到详细的扫描报告。</p>
+
+<h3 id="扫描状态说明">扫描状态说明</h3>
+
+<table>
+  <thead><tr><th>状态</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td class="field">INIT</td><td>初始化状态</td></tr>
+    <tr><td class="field">RUNNING</td><td>正在扫描中</td></tr>
+    <tr><td class="field">COMPLETED</td><td>扫描完成</td></tr>
+    <tr><td class="field">FAILED</td><td>扫描失败</td></tr>
+    <tr><td class="field">TIMEOUT</td><td>扫描超时</td></tr>
+    <tr><td class="field">CANCELED</td><td>已取消扫描</td></tr>
+  </tbody>
+</table>
+
+<h3 id="质量问题等级">质量问题等级</h3>
+
+<table>
+  <thead><tr><th>等级</th><th>说明</th><th>建议处理方式</th></tr></thead>
+  <tbody>
+    <tr><td><span class="pill bad">ERROR</span></td><td>严重问题</td><td>必须修复</td></tr>
+    <tr><td><span class="pill warn">WARNING</span></td><td>警告问题</td><td>建议修复</td></tr>
+  </tbody>
+</table>
+
+<h3 id="用户行为选项">用户行为选项</h3>
+
+<table>
+  <thead><tr><th>行为</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td>误报</td><td>拒绝建议，认为不需要修改</td></tr>
+  </tbody>
+</table>
+
+<h2 id="faq">常见问题</h2>
+
+<h3 id="q1-扫描需要多长时间">Q1: 扫描需要多长时间？</h3>
+<p>A: 通常单次扫描在 5 分钟左右，具体时间取决于 MCP 服务的复杂度和工具数量。</p>
+
+<h3 id="q2-扫描失败怎么办">Q2: 扫描失败怎么办？</h3>
+<p>A: 检查 MCP 服务是否正常运行，确认网络连接正常，重新<strong>发布预发</strong>可自动重新发起扫描。</p>
+
+<h3 id="q3-如何理解-ai-分析结果">Q3: 如何理解 AI 分析结果？</h3>
+<p>A: 系统采用智能 AI 分析，结合规则检查和语义理解，提供具体的问题描述和改进建议。</p>
+
+<h3 id="q4-扫描结果不对">Q4: 扫描结果不对？</h3>
+<p>A: 大模型在评估过程中可能会出现幻觉，可以点击<strong>「误报」</strong>反馈，点击后，该问题会被忽略。</p>
+
+<h3 id="q5-如何按照建议进行修改">Q5：如何按照建议进行修改？</h3>
+
+<table>
+  <thead><tr><th>错误类型</th><th>如何修改</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>MCP Server</strong> 类的错误：比如说明文档（readme）、描述（description）不符合规范</td>
+      <td>在平台的「设置」下进行修改：描述（设置-&gt;基本信息-&gt;描述）、说明信息（设置-&gt;说明信息）</td>
+    </tr>
+    <tr>
+      <td><strong>MCP Tool</strong> 类的错误：比如工具描述（description）、工具参数（inputSchema）不符合规范</td>
+      <td>根据不同的开发方式：源码类（Java/Node/Python SDK）在源码中通过注解、zod 等工具声明；OpenAPI Transform 类在平台「发布」Tab 下进行修改</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="support">技术支持</h2>
+
+<p>如遇到技术问题或需要帮助，请联系 @康勇(时路)</p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#overview">概述</a>
+      </li>
+      <li><a href="#why">为什么要做 MCP 质量扫描</a>
+      </li>
+      <li><a href="#spec">MCP 质量规范</a>
+        <ol>
+          <li><a href="#稳定性-stability">稳定性（STABILITY）</a></li>
+          <li><a href="#安全性-security">安全性（SECURITY）</a></li>
+          <li><a href="#易用性-usability">易用性（USABILITY）</a></li>
+        </ol>
+      </li>
+      <li><a href="#flow">MCP 质量扫描操作流程</a>
+        <ol>
+          <li><a href="#发起质量扫描">发起质量扫描</a></li>
+          <li><a href="#查看扫描状态和结果">查看扫描状态和结果</a></li>
+          <li><a href="#扫描状态说明">扫描状态说明</a></li>
+          <li><a href="#质量问题等级">质量问题等级</a></li>
+          <li><a href="#用户行为选项">用户行为选项</a></li>
+        </ol>
+      </li>
+      <li><a href="#faq">常见问题</a>
+        <ol>
+          <li><a href="#q1-扫描需要多长时间">Q1: 扫描需要多长时间？</a></li>
+          <li><a href="#q2-扫描失败怎么办">Q2: 扫描失败怎么办？</a></li>
+          <li><a href="#q3-如何理解-ai-分析结果">Q3: 如何理解 AI 分析结果？</a></li>
+          <li><a href="#q4-扫描结果不对">Q4: 扫描结果不对？</a></li>
+          <li><a href="#q5-如何按照建议进行修改">Q5：如何按照建议进行修改？</a></li>
+        </ol>
+      </li>
+      <li><a href="#support">技术支持</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

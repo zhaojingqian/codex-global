@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>HTTP 请求头配置</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <a href="server-options.html">调整 MCP Server 的选项</a>
+  <span class="sep">/</span>
+  <span>HTTP 请求头配置</span>
+</nav>
+
+<h1>HTTP 请求头配置</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<p>默认情况下，网关（指 Aone MCP 网关）通过 HTTP/HSF 调用 MCP Tool Provider 时，仅传递部分必要的请求头，例如 EagleEye-TraceId、Authorization。为了方便开发者根据业务需求灵活传递请求头，网关支持开发者通过 <code>mcp.headers</code> 配置自定义请求头。</p>
+
+<div class="panel small">
+配置之前，请先阅读 <a href="server-options.html">调整 MCP Server 的选项</a>
+</div>
+
+<h2 id="rules">配置规则</h2>
+
+<h3 id="固定请求头">固定请求头</h3>
+
+<p>配置固定的请求头键值对，所有请求均会携带该 header。</p>
+
+<p>示例：<code>mcp.headers.My-Custom-Token=Bearer token_123456</code></p>
+
+<h3 id="动态请求头">动态请求头</h3>
+
+<ul>
+  <li>支持使用 <code>$ctx.xxx</code> 获取上下文变量，当前仅支持以下写法：
+    <ul>
+      <li><code>$ctx.user.empId</code> 获取当前 BUC 用户工号（数字工号前不带 0）</li>
+      <li><code>$ctx.user.loginName</code> 获取当前 BUC 用户域账号</li>
+      <li><code>$ctx.user.name</code> 获取当前 BUC 用户花名（没有花名时用真名代替）</li>
+      <li><code>$ctx.headers.Custom-Header</code> 获取客户端请求中的指定请求头（请求头名称不区分大小写）</li>
+    </ul>
+  </li>
+  <li>示例1：将当前操作人的工号，放到 Buc-Emp-Id 请求头中
+    <ul><li><code>mcp.headers.Buc-Emp-Id=$ctx.user.empId</code></li></ul>
+  </li>
+  <li>示例2：将客户端的 User-Agent 放到 X-User-Agent 中
+    <ul><li><code>mcp.headers.X-User-Agent=$ctx.headers.User-Agent</code></li></ul>
+  </li>
+  <li>示例3：透传 My-Biz-Token
+    <ul><li><code>mcp.headers.My-Biz-Token=$ctx.headers.My-Biz-Token</code></li></ul>
+  </li>
+</ul>
+
+<h3 id="敏感字段加密">敏感字段加密</h3>
+
+<ul>
+  <li>使用固定请求头时，支持用 <code>encrypted:</code> 前缀设置敏感信息</li>
+  <li>示例：<code>mcp.headers.My-Authorization=encrypted:93119326bd3880052390d9daad79</code></li>
+  <li>注意事项：
+    <ul>
+      <li>加密过程需开发者主动操作，解密过程由 MCP 网关自动处理</li>
+      <li>不同 MCP Server 加密时，会使用不同的 password 或 salt，一个 MCP Server 生成的密文不能被其他 Server 所解密</li>
+      <li>同一个 MCP Server，预发和线上使用相同的 password 和 salt，即预发生成的密文可以在线上被解密</li>
+      <li>密文中包含 IV（初始化向量），相同输入 每次加密都会产生不同的密文</li>
+    </ul>
+  </li>
+  <li>其他：
+    <ul>
+      <li>建议通过页面中的 "请求头配置" 进行加解密操作，避免出错</li>
+      <li><strong>token、AK/SK、密码、cookie 等敏感信息，强烈建议进行加密</strong></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="notes">注意事项</h2>
+
+<ul>
+  <li>固定请求头（包括敏感字段加密）会出现在每一个请求中，包括获取工具列表的请求以及调用工具的请求；而动态请求头仅在调用工具时才提供。</li>
+  <li>动态请求头涉及对表达式进行解析求值，当表达式解析出错时，或是表达式计算后的值为空（null）时，网关将不传递该请求头</li>
+  <li>网关自动添加的请求头（例如鹰眼 EagleEye-TraceId）的优先级<strong>高于</strong>自定义请求头
+    <ul>
+      <li>在添加自定义请求头时，尽量避免通用的请求头名称</li>
+      <li>2025-01-23 更新：支持开发者配置 <code>mcp.headers.Authorization</code>，网关会将 <code>Authorization</code> 传递给 Tool Provider</li>
+    </ul>
+  </li>
+  <li>自定义请求头在不同接入类型下有一些差异
+    <ul>
+      <li>通过 HSF 接入时，网关会通过 <code>LiteMcpSchema.CallToolRequest</code> 来传递 headers，具体获取方式详见 <a href="java-handbook.html">Java Aone MCP 研发手册</a></li>
+      <li>通过 HTTP 或 Open API Transform 或代理已有 MCP Server 接入时，网关发起的 HTTP 请求中将携带自定义请求头</li>
+      <li>Stdio 托管类型暂不支持自定义请求头</li>
+    </ul>
+  </li>
+  <li><strong>注意 HTTP 请求头本身是不区分大小写的</strong>，所以 "你配置的 header 名称" 和 "实际代码中获取的 header 名称" 的字母大小写可能不同
+    <ul><li>以 Midway FaaS 为例，代码中读取到的请求头名称统一为小写字母</li></ul>
+  </li>
+</ul>
+
+<h2 id="example">配置示例</h2>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#rules">配置规则</a>
+        <ol>
+          <li><a href="#固定请求头">固定请求头</a></li>
+          <li><a href="#动态请求头">动态请求头</a></li>
+          <li><a href="#敏感字段加密">敏感字段加密</a></li>
+        </ol>
+      </li>
+      <li><a href="#notes">注意事项</a>
+      </li>
+      <li><a href="#example">配置示例</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

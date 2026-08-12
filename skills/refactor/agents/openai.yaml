@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor Review"
+  short_description: "Panorama-first refactor review and execution"
+  default_prompt: "Use $refactor to review this codebase and propose the smallest complete refactor before editing."

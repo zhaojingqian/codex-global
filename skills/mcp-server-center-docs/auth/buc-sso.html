@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>BUC 应用免登</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>BUC 应用免登</span>
+</nav>
+
+<h1>BUC 应用免登</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-21</div>
+<h2 id="intro">说明</h2>
+
+<blockquote>
+<p><a href="https://docs.dingtalk.com/i/nodes/93NwLYZXWyxXroNzCEYDnpAz8kyEqBQm">通过SSO_TICKET实现应用间免登</a></p>
+<p>默认应用A没登录会跳转到buc登录然后建立自己的登录态，这个时候再访问应用B也会跳到buc然后建立B的登录态，这直接在buc只用输入一次账密，这就是我们平时多应用免登的体验。</p>
+<p>但是一些场景是希望应用A登录之后，访问B的时候不用在跳转到buc一次，而是直接通过A访问B应用的时候直接B就登录了。</p>
+</blockquote>
+
+<p>Aone MCP 从 10月底开始支持 BUC 免登能力。当我们（指 MCP 工具开发者和 MCP 网关）为应用建立免登关系后，用户只需在 MCP 网关侧完成 BUC OAuth 授权，即可"免登到目标应用" 并调用目标应用提供的 MCP 工具。</p>
+
+<p>免登能力适用于那些已对接 BUC 登录的存量应用：比如某个应用有一些现成的、已对接 BUC 登录的接口，开发者期望将这些 HTTP 接口转换为 MCP 工具（可以通过 <a href="../develop/openapi-transform.html">OpenAPI 转换能力</a>，或是用 <a href="../develop/faas-handbook.html">Aone FaaS 应用</a>进行中转）。有了免登能力，旧的应用可以继续使用 BUC 登录，开发者无需为 MCP 场景额外开发一套鉴权代码。</p>
+
+<h2 id="config-flow">配置流程</h2>
+
+<h3 id="第一步-选择-buc-oauth2-授权服务器">第一步：选择 BUC OAuth2 授权服务器</h3>
+
+<p>在 MCP Server 设置中，选择 "BUC OAuth2" 作为授权服务器：</p>
+
+<h3 id="第二步-配置选项">第二步：配置选项</h3>
+
+<p>在 "设置" — "选项" 中添加以下内容：（注意预发和线上需单独添加）</p>
+<pre><span class="c"># 是否生成 BUC 免登 SSO_TICKET</span>
+<span class="k">mcp.buc-sso-ticket.enabled</span>=<span class="s">true</span>
+
+<span class="c"># 是否将 SSO_TICKET 放在请求链接中（默认为 true）</span>
+<span class="k">mcp.buc-sso-ticket.include-in-query</span>=<span class="s">true</span></pre>
+
+<p>配置示例截图：</p>
+
+<h3 id="第三步-建立-buc-应用间免登关系">第三步：建立 BUC 应用间免登关系</h3>
+
+<p>建立 BUC 应用间免登关系（<a href="https://login.alibaba-inc.com/appAuthorizeApply.htm">功能入口</a>）需要从 "Aone MCP 网关" 侧发起审批。</p>
+
+<p>请联系本文作者，并提供你的 BUC 应用名称：</p>
+
+<h3 id="第四步-测试与验证">第四步：测试与验证</h3>
+
+<p>完成以上 3 步后，当用户通过 BUC OAuth 授权使用 MCP Server 时，Aone MCP 网关向下游应用（工具提供方）发起请求时将提供 "BUC SSO Ticket"。不同接入类型的 MCP Server 获取或消费 ticket 的方式有所不同：</p>
+
+<ul>
+  <li><a href="../develop/openapi-transform.html">Open API Transform</a>：
+    <ul>
+      <li>下游可通过 <code>BUC-SSO-TICKET</code> 请求头获取 Ticket</li>
+      <li>若 <code>mcp.buc-sso-ticket.include-in-query=true</code>（该选项默认为 true），则 ticket 会同时放在 SSO_TICKET 链接参数上
+        <ul><li>当链接包含 SSO_TICKET 参数时，会自动在下游应用完成免登</li></ul>
+      </li>
+    </ul>
+  </li>
+  <li>HTTP 接入类型（例如 <a href="../develop/faas-handbook.html">Node.js Aone FaaS 应用</a>）：
+    <ul>
+      <li>下游可通过 <code>BUC-SSO-TICKET</code> 请求头获取 Ticket</li>
+      <li>若 <code>mcp.buc-sso-ticket.include-in-query=true</code>（该选项默认为 true），则 ticket 会同时放在 SSO_TICKET 查询参数上</li>
+      <li>注意：网关请求 tools/list 接口时，是没有用户身份的，ticket 仅在调用 tools/call 接口才会提供。</li>
+    </ul>
+  </li>
+  <li>Aone MCP Java SDK：
+    <ul>
+      <li>下游可通过 <code>BUC-SSO-TICKET</code> 请求头获取该 Ticket，获取方式详见<a href="../develop/java-handbook.html">调用工具上下文</a></li>
+    </ul>
+  </li>
+  <li>其它接入类型暂不支持，如有需求请联系本文作者</li>
+</ul>
+
+<div class="panel small">
+注意：生成 SSO_TICKET 的前提是用户完成了 OAuth2 授权（<a href="static-client.html">静态客户端</a>或<a href="dynamic-client.html">动态客户端</a>均可）；如果用户使用 Private Token 完成授权，则无法生成 SSO_TICKET。
+</div>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#intro">说明</a>
+      </li>
+      <li><a href="#config-flow">配置流程</a>
+        <ol>
+          <li><a href="#第一步-选择-buc-oauth2-授权服务器">第一步：选择 BUC OAuth2 授权服务器</a></li>
+          <li><a href="#第二步-配置选项">第二步：配置选项</a></li>
+          <li><a href="#第三步-建立-buc-应用间免登关系">第三步：建立 BUC 应用间免登关系</a></li>
+          <li><a href="#第四步-测试与验证">第四步：测试与验证</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>在沙箱中运行 Command</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>在沙箱中运行 Command</span>
+</nav>
+
+<h1>在沙箱中运行 Command</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-30</div>
+<h2 id="intro">简介</h2>
+
+<p>Aone MCP 网关支持在远程沙箱中运行命令。通过该能力，开发者可以将 Stdio 类型的 MCP Server（一般通过 npx 或 uvx 命令启动）"转换" 为在线的 MCP Server。客户端可以通过 Streamable HTTP Transport（或 SSE Transport）连接这些 Server，不再依赖本地 Node.js/Python 环境。</p>
+
+<p>（对实现细节感兴趣的同学可以看<a href="https://alidocs.dingtalk.com/i/nodes/oP0MALyR8kzGnoOwF2LlMj1zJ3bzYmDO">该文档</a>）</p>
+
+<h2 id="register-config">注册与配置流程</h2>
+
+<h3 id="注册-mcp-server">注册 MCP Server</h3>
+
+<p>打开 <a href="https://open.aone.alibaba-inc.com/mcp/register">MCP Server 注册页面</a>，接入类型选择 <strong>Command</strong>，然后提交表单：</p>
+
+<h4>导入 mcp.json</h4>
+
+<p>新增 MCP Server 时，你可以支持导入已有 mcp.json，一键转换开源 MCP Server</p>
+
+<img src="../assets/images/df594d6e-db33-401a-963e-b524733bcb1b.gif" alt="导入 mcp.json 动画演示">
+
+<h3 id="配置命令行参数">配置命令行参数</h3>
+
+<p>注册 MCP Server 后，前往 "设置" — "选项"，填写 <code>command.template</code> 等配置：</p>
+
+<h4>command.template</h4>
+
+<p>定义 MCP Server 的命令行模板，模板采用自定义 DSL 设计，使用 <a href="https://github.com/google/mug/tree/master/dot-parse">Mug dot parse</a> 进行解析，提供更直观的命令行配置方式。</p>
+
+<p>模板支持以下语法：</p>
+<ul>
+  <li>变量（花括号）：<code>{name}</code></li>
+  <li>可选块（方括号）：<code>[--flag]</code> 或 <code>[-f]</code> 或 <code>[--flag={value}]</code></li>
+</ul>
+
+<p>在连接 MCP Server 时，用户可通过 URL 传递参数。MCP 网关会根据参数值，将变量与可选块替换为相应内容，"渲染" 得到完整命令。</p>
+
+<p>下面以 <code>npx package@{version} --arg={arg} [--flag] [--optional={optional}]</code> 举一些例子：</p>
+
+<table>
+  <thead><tr><th>链接地址（通过 URL 传递参数）</th><th>展开后的命令</th></tr></thead>
+  <tbody>
+    <tr><td><code>?version=latest&amp;arg=foo</code></td><td><code>npx package@latest --arg=foo</code></td></tr>
+    <tr><td><code>?version=latest&amp;arg=foo&amp;flag=true</code></td><td><code>npx package@latest --arg=foo --flag</code></td></tr>
+    <tr><td><code>?version=latest&amp;arg=foo&amp;optional=bar</code></td><td><code>npx package@latest --arg=foo --optional=bar</code></td></tr>
+    <tr><td><code>?version=latest</code></td><td>ERROR：缺少 arg 参数</td></tr>
+  </tbody>
+</table>
+
+<p>在连接 MCP Server 时，用户也可以通过 MCP-ARGS 请求头来传递参数，具体规则参考下方「使用流程」章节。</p>
+
+<h4>command.args.&lt;arg&gt;</h4>
+
+<p>你可以通过 <code>command.args.&lt;arg&gt;.xxx</code> 来定义参数的规则，当前支持以下配置项：</p>
+<ul>
+  <li><code>command.args.&lt;arg&gt;.default-value</code> 参数默认值</li>
+  <li><code>command.args.&lt;arg&gt;.description</code> 参数描述</li>
+  <li><code>command.args.&lt;arg&gt;.value</code> 参数的固定值</li>
+</ul>
+
+<h4>参数规则：优先级</h4>
+
+<p><code>value &gt; input &gt; default-value</code></p>
+<p>"固定值" <strong>大于</strong> "用户通过 URL 输入的参数值" <strong>大于</strong> "默认值"</p>
+
+<h4>参数规则：默认值</h4>
+<ul>
+  <li>使用 <code>{name}</code> 定义的变量默认必填；可选块中的变量默认可选</li>
+  <li>设置 value 或 default-value 后，该参数变为可选参数</li>
+  <li><strong>注意：目前我们要求所有参数都必须提供固定值或默认值</strong>（因为开放平台上 MCP 发布流程需要用默认参数值来获取工具列表）</li>
+</ul>
+
+<h3 id="配置环境变量">配置环境变量</h3>
+
+<p>你可以通过 <code>command.env.&lt;env&gt;</code> 来定义命令的环境变量，当前支持以下配置项：</p>
+<ul>
+  <li><code>command.env.&lt;env&gt;.description</code> 环境变量描述</li>
+  <li><code>command.env.&lt;env&gt;.defaultValue</code> 环境变量默认值</li>
+  <li><code>command.env.&lt;env&gt;.required</code> 是否为必传的环境变量</li>
+  <li><code>command.env.&lt;env&gt;.value</code> 环境变量的固定值</li>
+</ul>
+
+<h3 id="上下文变量">上下文变量</h3>
+
+<p>通过 <code>$ctx.xxx</code> 的语法获取 MCP 会话 ID 与当前用户信息（BUC 工号）等。</p>
+
+<p>command 类型支持使用 "上下文变量" 来定义 arg 或 env 的值。当前支持以下用法：</p>
+<ul>
+  <li><code>$ctx.user.empId</code> 用户工号</li>
+  <li><code>$ctx.user.name</code> 用户花名（没有花名时，该字段为姓名）</li>
+  <li><code>$ctx.user.loginName</code> 用户域账号</li>
+  <li><code>$ctx.sessionKey</code> MCP 会话 ID</li>
+</ul>
+
+<p>正确示例：</p>
+
+<pre><span class="k">command.template</span>=npx package@{version} --empId={empId} --logDir=/logs/{sessionkey}/stdout.log
+
+<span class="c"># empId 将在运行时被替换为 BUC 用户工号</span>
+<span class="k">command.args.empId.value</span>=<span class="s">$ctx.user.empId</span>
+
+<span class="c"># sessionKey 将在运行时被替换为 MCP 会话 ID</span>
+<span class="k">command.args.sessionkey.value</span>=<span class="s">$ctx.sessionKey</span>
+
+<span class="c"># 子进程可通过 MCP_SESSION_KEY 环境变量获取 MCP 会话 ID</span>
+<span class="k">command.env.MCP_SESSION_KEY.value</span>=<span class="s">$ctx.sessionKey</span></pre>
+
+<p>错误示例：</p>
+<ul>
+  <li><code>command.template=npx package --empId=$ctx.user.empId</code>
+    <ul><li>错误用法：上下文变量不能放在 template 中</li></ul>
+  </li>
+</ul>
+
+<h3 id="进阶配置">进阶配置</h3>
+<ul>
+  <li><code>command.sandbox-reuse-strategy</code> 沙箱复用策略
+    <ul>
+      <li><code>"user"</code> 同一个用户复用沙箱<strong>（默认值）</strong> — 该模式下，同一个用户多次连接同一个 MCP Server，会复用同一个沙箱</li>
+      <li><code>"shared"</code> 共享模式 — 所有用户连接同一个 MCP Server，都会复用同一个沙箱</li>
+      <li><code>"exclusive"</code> 独占策略 — 不进行任何复用，每个 MCP 会话使用单独的沙箱实例</li>
+    </ul>
+  </li>
+  <li><code>command.max-active-sessions-per-sandbox</code> 单个沙箱中可同时运行的子进程数量上限，默认为 32</li>
+  <li><code>command.sandbox-max-reuse-uptime</code> 沙箱容器最大可复用运行时长，默认为 3 天</li>
+</ul>
+
+<h2 id="debug-ops">调试与运维</h2>
+
+<p>详见：<a href="sandbox-debug.html">调试与运维</a></p>
+
+<h2 id="usage-flow">使用流程</h2>
+
+<p>在使用阶段，如果 Command 模板包含参数或环境变量，用户可以通过 URL 参数或 HTTP 请求头提供这些参数/变量值。规则如下：</p>
+<ul>
+  <li>链接参数映射规则
+    <ul>
+      <li><code>?version=latest&amp;flag=true</code> 链接参数会自动映射为变量值</li>
+      <li><code>?env.TOKEN=xxx</code> 链接中以 <code>env.</code> 开头的参数会映射为环境变量</li>
+    </ul>
+  </li>
+  <li>请求头参数映射规则（使用 JSON 格式）
+    <ul>
+      <li><code>MCP-ARGS: {"version":"1.0.0","flag": true}</code></li>
+      <li><code>MCP-ENV: {"TOKEN":"xxx"}</code></li>
+    </ul>
+  </li>
+</ul>
+
+<p>此外，MCP 网关也会对连接进行身份认证，详见 <a href="../auth/auth-overview.html">认证与授权文档</a>。</p>
+
+<h2 id="examples">示例</h2>
+
+<div class="panel small">提示：沙箱容器内置 tnpm 10，你可以使用 tnpx 来代替 npx 命令。uvx 的默认 URL 已改为 <a href="https://artlab.alibaba-inc.com/">artlab</a></div>
+
+<h3 id="示例-高德地图-mcp">示例：高德地图 MCP</h3>
+
+<pre><span class="k">command.template</span>=tnpx @amap/amap-maps-mcp-server@{version}
+<span class="k">command.args.version.default-value</span>=<span class="s">0.0.8</span>
+<span class="k">command.env.AMAP_MAPS_API_KEY.description</span>=高德官网上申请的key</pre>
+
+<p>使用示例：</p>
+<ul>
+  <li>通过 URL 提供环境变量：<code>https://mcp.alibaba-inc.com/amap-mcp/mcp?env.AMAP_MAPS_API_KEY=xxx</code></li>
+  <li>通过请求头提供环境变量：
+    <ul>
+      <li><code>https://mcp.alibaba-inc.com/amap-mcp/mcp</code></li>
+      <li><code>MCP-ENV: {"AMAP_MAPS_API_KEY": "xxx"}</code></li>
+      <li><code>PRIVATE-TOKEN: *******</code> — Private Token 从 <a href="https://code.alibaba-inc.com/profile/account">此页面</a>获取</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="示例-context7">示例：Context7</h3>
+
+<pre><span class="k">command.template</span>=tnpx @upstash/context7-mcp@{version}
+<span class="k">command.args.version.default-value</span>=<span class="s">2.0.2</span>
+<span class="k">command.schedule-strategy</span>=shared</pre>
+
+<p>使用示例：</p>
+<ul>
+  <li>使用默认版本：<code>https://mcp.alibaba-inc.com/context7/mcp</code></li>
+  <li>使用其他版本：<code>https://mcp.alibaba-inc.com/context7/mcp?version=2.1.0</code></li>
+</ul>
+
+<h3 id="示例-alibabacloud-dms-mcp-server-uvx">示例：alibabacloud-dms-mcp-server（uvx）</h3>
+
+<pre><span class="k">command.template</span>=uvx alibabacloud-dms-mcp-server@0.1.16
+
+<span class="k">command.env.ALIBABA_CLOUD_ACCESS_KEY_ID.description</span>=Access Key ID
+<span class="k">command.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET.description</span>=Access Key Secret
+<span class="k">command.env.CONNECTION_STRING.description</span>=指定需要访问的数据库，格式为 dbName@host:port</pre>
+
+<h3 id="示例-mermaid-mcp">示例：Mermaid MCP</h3>
+
+<pre><span class="k">command.template</span>=tnpx mcp-mermaid@{version}
+<span class="k">command.args.version.value</span>=<span class="s">0.4.0</span></pre>
+
+<p>使用示例：<code>https://mcp.alibaba-inc.com/mermaid/mcp</code></p>
+<p>注意，version 参数配置了固定值，使用时无法修改该参数。</p>
+
+<h3 id="示例-chrome-devtools-mcp">示例：chrome-devtools-mcp</h3>
+
+<pre><span class="k">command.template</span>=npx --verbose --registry={registry} chrome-devtools-mcp@{version} --executablePath={executablePath} --isolated --headless --chrome-arg=--disable-setuid-sandbox --chrome-arg=--no-sandbox --logFile={logFile}
+<span class="k">command.args.version.value</span>=<span class="s">0.10.2</span>
+<span class="k">command.args.registry.value</span>=<span class="s">https://registry.anpm.alibaba-inc.com</span>
+<span class="k">command.args.executablePath.value</span>=<span class="s">/root/.cache/ms-playwright/chromium-1200/chrome-linux64/chrome</span>
+<span class="k">command.args.logFile.value</span>=<span class="s">/tmp/cdlog.txt</span></pre>
+
+<p>小提示：通过 <code>{executablePath}</code>、<code>{logFile}</code> 等变量，简化 template，提升 template 的可读性</p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#intro">简介</a>
+      </li>
+      <li><a href="#register-config">注册与配置流程</a>
+        <ol>
+          <li><a href="#注册-mcp-server">注册 MCP Server</a></li>
+          <li><a href="#配置命令行参数">配置命令行参数</a></li>
+          <li><a href="#配置环境变量">配置环境变量</a></li>
+          <li><a href="#上下文变量">上下文变量</a></li>
+          <li><a href="#进阶配置">进阶配置</a></li>
+        </ol>
+      </li>
+      <li><a href="#debug-ops">调试与运维</a>
+      </li>
+      <li><a href="#usage-flow">使用流程</a>
+      </li>
+      <li><a href="#examples">示例</a>
+        <ol>
+          <li><a href="#示例-高德地图-mcp">示例：高德地图 MCP</a></li>
+          <li><a href="#示例-context7">示例：Context7</a></li>
+          <li><a href="#示例-alibabacloud-dms-mcp-server-uvx">示例：alibabacloud-dms-mcp-server（uvx）</a></li>
+          <li><a href="#示例-mermaid-mcp">示例：Mermaid MCP</a></li>
+          <li><a href="#示例-chrome-devtools-mcp">示例：chrome-devtools-mcp</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

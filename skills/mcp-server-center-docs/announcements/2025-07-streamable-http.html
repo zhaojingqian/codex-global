@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>2025-07 Streamable HTTP Transport</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>2025-07 Streamable HTTP Transport</span>
+</nav>
+
+<h1>2025-07 Streamable HTTP Transport</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2025-12-08</div>
+<p><a href="https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http">Streamable HTTP Transport</a> 是 MCP 协议 2025-03-26 版本中新增的一种 Transport，用于代替旧版本中的 HTTP+SSE Transport。</p>
+
+<p>Aone MCP 网关目前（2025年7月1日）已发布对 Streamable HTTP Transport 的支持。<strong>如果你的 MCP 客户端支持 Streamable HTTP Transport，建议切换到新的连接方式以获取更好的稳定性。</strong></p>
+
+<blockquote>
+<p><strong>Streamable HTTP</strong></p>
+<p>This replaces the HTTP+SSE transport from protocol version 2024-11-05.</p>
+<p>In the Streamable HTTP transport, the server operates as an independent process that can handle multiple client connections. This transport uses HTTP POST and GET requests. Server can optionally make use of Server-Sent Events (SSE) to stream multiple server messages. This permits basic MCP servers, as well as more feature-rich servers supporting streaming and server-to-client notifications and requests.</p>
+<p>The server MUST provide a single HTTP endpoint path (hereafter referred to as the MCP endpoint) that supports both POST and GET methods. For example, this could be a URL like <code>https://example.com/mcp</code>.</p>
+</blockquote>
+
+<h2 id="connect">如何连接</h2>
+
+<p>Aone MCP 网关提供的 Streamable HTTP 连接地址格式如下（其中的 name 为 MCP Server 的名称）：</p>
+
+<p><code>https://mcp.alibaba-inc.com/{name}/mcp</code></p>
+
+<p>通过 Streamable HTTP 连接 MCP Server 时，Aone MCP 网关支持通过 OAuth 令牌作为当前用户的身份凭证：</p>
+
+<pre><span class="k">POST</span> https://mcp.alibaba-inc.com/code/mcp HTTP/1.1
+<span class="k">Authorization</span>: Bearer mcpa_*************
+
+&lt;Request Body&gt;</pre>
+
+<p>其他鉴权方式详见 <a href="../auth/auth-overview.html">MCP 身份认证概览</a></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#connect">如何连接</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

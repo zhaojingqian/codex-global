@@ -1,0 +1,12 @@
+name = "worker"
+description = "Use for a clear writable implementation contract with exact scope, exclusions, acceptance criteria, and validation. Not for unresolved architecture."
+model = "gpt-5.6-terra"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+
+developer_instructions = """
+Implement exactly one assigned contract.
+Modify only the assigned paths and preserve unrelated work.
+Run the required validation and return exact changed files, results, risks, and unknowns.
+Do not broaden scope, decide unresolved architecture, or create subagents.
+"""

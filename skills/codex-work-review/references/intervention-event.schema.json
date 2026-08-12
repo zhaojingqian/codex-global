@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Work Review Intervention Event",
+  "type": "object",
+  "required": ["schema_version", "id", "event_type", "scope", "period", "status"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "id": {"type": "string", "minLength": 1},
+    "event_type": {"enum": ["introduced", "reviewed", "closed"]},
+    "scope": {"type": "string", "minLength": 1},
+    "period": {"type": "string", "minLength": 1},
+    "status": {"enum": ["planned", "active", "improved", "unchanged", "regressed", "insufficient-evidence", "closed"]},
+    "change": {"type": "string"},
+    "expected_effect": {"type": "string"},
+    "review_metrics": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    },
+    "due_period": {"type": "string"},
+    "evidence": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

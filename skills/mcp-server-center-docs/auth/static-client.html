@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>静态客户端接入指南</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>静态客户端接入指南</span>
+</nav>
+
+<h1>静态客户端接入指南</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-04-07</div>
+<h2 id="basics">基础信息</h2>
+
+<ul>
+  <li>Aone MCP 网关域名：
+    <ul>
+      <li>线上环境：<code>https://mcp.alibaba-inc.com</code></li>
+      <li><span class="muted">日常环境：<code>http://mcp.taobao.net</code></span></li>
+      <li><span class="muted">预发环境：<code>https://pre-mcp.alibaba-inc.com</code></span></li>
+    </ul>
+  </li>
+  <li>OAuth 元信息地址：<a href="https://mcp.alibaba-inc.com/.well-known/oauth-authorization-server">https://mcp.alibaba-inc.com/.well-known/oauth-authorization-server</a></li>
+  <li>相关协议
+    <ul>
+      <li>OAuth2.1 协议：<a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-1">https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-1</a></li>
+      <li>MCP 授权协议：<a href="https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization">https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="overview">概览</h2>
+
+<ul>
+  <li>你的系统或应用需要先完成 OAuth 客户端注册，我们将为 MCP 客户端颁发 client_id 和 client_secret</li>
+  <li>Aone MCP 网关支持标准的、基于授权码模式的 OAuth2 授权流程
+    <ul>
+      <li>你可以通过日常环境的 <a href="https://1d.alibaba-inc.com/apps/01mCPyat">小毛毛智能</a> 了解和学习 OAuth2</li>
+      <li>OAuth2 是一个应用非常广泛的授权协议，你可以直接向大模型询问 "我该如果实现一个 OAuth2 客户端"</li>
+    </ul>
+  </li>
+  <li>对 OAuth2 和 MCP 客户端有一定了解后，按照本文介绍完成接下来的开发和对接工作</li>
+</ul>
+
+<h2 id="preparation">准备工作</h2>
+
+<p>前往 接入身份管理页面 -> MCP Client 管理页面，注册 MCP Client，获取 <strong>客户端编码</strong> 和 <strong>客户端密钥</strong></p>
+
+<p>操作流程文档 → <a href="client-registration.html">MCP Client 注册流程</a></p>
+
+<h2 id="step1">第一步：请求 code</h2>
+
+<div class="panel">
+在这一步中，你需要构造一个链接，并在用户浏览器中打开该链接。<br><br>
+用户打开该链接后，浏览器会自动跳转到对应的授权服务器（例如 BUC 集团登录）的认证或授权页面，用户在页面中确认授权后，会跳转回 MCP Client 的回调页面。
+</div>
+
+<p>地址：</p>
+<pre><span class="k">GET</span> /oauth/authorize</pre>
+
+<p>参数：</p>
+
+<table>
+  <thead><tr>
+    <th>参数</th>
+    <th>是否必填</th>
+    <th>说明</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td class="field">response_type</td>
+      <td>是</td>
+      <td>授权类型，需填写 "code"</td>
+    </tr>
+    <tr>
+      <td class="field">client_id</td>
+      <td>是</td>
+      <td>客户端 ID</td>
+    </tr>
+    <tr>
+      <td class="field">scope</td>
+      <td>是</td>
+      <td>授权作用域，填写 <code>server:{name}</code>，其中 name 为 MCP Server 的名称，例如 coop 。scope 的更多用法详见 <a href="oauth-extensions.html">OAuth 授权扩展</a></td>
+    </tr>
+    <tr>
+      <td class="field">state</td>
+      <td>否</td>
+      <td>用于保持请求和回调的状态，授权成功后回传给 Client<br>建议每次都生成一个随机字符串</td>
+    </tr>
+    <tr>
+      <td class="field">redirect_uri</td>
+      <td>否</td>
+      <td>客户端回调地址<br>如果不填写，则使用客户端注册时的默认回调地址</td>
+    </tr>
+    <tr>
+      <td class="field">code_challenge</td>
+      <td>public 客户端必填</td>
+      <td>详见 <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.1">OAuth2.1</a></td>
+    </tr>
+    <tr>
+      <td class="field">code_challenge_method</td>
+      <td>否</td>
+      <td>code_challenge 为空时，默认为空（为空表示不使用 PKCE）<br>code_challenge 非空时，默认为 plain<br>支持 S256 或 plain，详见 <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-4.1.1">OAuth2.1</a><br>如果提供该值，则在获取 access_token 时需要提供 code_verifier</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>示例地址：</p>
+<p><code>https://mcp.alibaba-inc.com/oauth/authorize?response_type=code&amp;client_id=cat-ai&amp;scope=server:coop&amp;state=random_string</code></p>
+
+<p>返回值：</p>
+<p>根据不同的 MCP Server 的配置，重定向至相应的 <strong>授权服务器</strong>（例如 BUC OAuth2），用户登录 <strong>授权服务器</strong> 并完成身份认证，重定向至 MCP Client 回调地址并带上 code 和 state 参数。</p>
+
+<div class="panel small">
+客户端在本地或日常环境进行开发时，仍然可以使用 OAuth 正式环境：<br><br>
+在发起授权的时候，redirect_uri 传一个 127.0.0.1 的地址，这样授权完成后，会跳回 127.0.0.1 方便本地调试开发。
+</div>
+
+<h2 id="step2">第二步：获取 access_token</h2>
+
+<p>在 MCP Client 的服务端调用以下接口，用上一步获取的 code 换取对应的 access_token。access_token 默认有效期为 30 天，30 天后需进行刷新，或重新授权。</p>
+
+<p>请求：</p>
+<pre><span class="k">POST</span> /oauth/token HTTP/1.1
+<span class="k">Host</span>: mcp.alibaba-inc.com
+<span class="k">Content-Type</span>: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+    &amp;code=mcpc_FYh1vYzxk4RSgXX2E3mBVBJujjV9fiaf
+    &amp;client_id=client_id
+    &amp;client_secret=client_secret
+
+<span class="c"># 注意参数放在 POST Body 中</span>
+<span class="c"># 上面的换行仅用于更好地在文档中展示参数，实际传参时不需要换行</span></pre>
+
+<p>参数：</p>
+
+<table>
+  <thead><tr>
+    <th>参数</th>
+    <th>是否强制</th>
+    <th>说明</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td class="field">grant_type</td>
+      <td>是</td>
+      <td>授权类型，固定为 "authorization_code"</td>
+    </tr>
+    <tr>
+      <td class="field">code</td>
+      <td>是</td>
+      <td>第一步获取的 code</td>
+    </tr>
+    <tr>
+      <td class="field">client_id</td>
+      <td>是</td>
+      <td>客户端 ID</td>
+    </tr>
+    <tr>
+      <td class="field">client_secret</td>
+      <td>confidential 客户端必填</td>
+      <td>客户端密钥</td>
+    </tr>
+    <tr>
+      <td class="field">code_verifier</td>
+      <td>前置步骤中提供 code_challenge 时必填</td>
+      <td>与 code_challenge 匹配的校验码，详见 <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#name-token-endpoint-extension">OAuth2.1</a></td>
+    </tr>
+  </tbody>
+</table>
+
+<p>默认成功返回示例：</p>
+<pre>{
+  <span class="k">"access_token"</span>: <span class="s">"mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg"</span>,
+  <span class="k">"expires_in"</span>: <span class="n">2592000</span>,
+  <span class="k">"refresh_token"</span>: <span class="s">"mcpr_FbrWyuOZjVYDXpdoKbGB3bnF3eU9qWV2"</span>,
+  <span class="k">"scope"</span>: <span class="s">"server:coop"</span>,
+  <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>
+}</pre>
+
+<p>字段说明：</p>
+
+<table>
+  <thead><tr>
+    <th>字段</th>
+    <th>说明</th>
+  </tr></thead>
+  <tbody>
+    <tr><td class="field">access_token</td><td>访问令牌，以 mcpa_ 开头</td></tr>
+    <tr><td class="field">expires_in</td><td>访问令牌过期时间，单位(秒)</td></tr>
+    <tr><td class="field">refresh_token</td><td>刷新令牌，以 mcpr_ 开头</td></tr>
+    <tr><td class="field">scope</td><td>授权范围，格式为 <code>server:{name}</code>，表示该访问令牌可使用哪一个 MCP Server</td></tr>
+    <tr><td class="field">token_type</td><td>固定为 "Bearer"</td></tr>
+  </tbody>
+</table>
+
+<div class="panel small">
+通过该流程获取的 token 只能用于访问指定的 MCP Server。我们也提供了 "可访问多个 MCP Server" 的 token 生成方式，详见 <a href="oauth-extensions.html">OAuth 授权扩展</a>
+</div>
+
+<h2 id="step3">第三步：使用 access_token</h2>
+
+<p>获取到 access_token 后，在连接 MCP Server 或调用工具时，带上 access_token：</p>
+<pre><span class="k">GET</span> /coop/sse HTTP/1.1
+<span class="k">Host</span>: mcp.alibaba-inc.com
+<span class="k">Authorization</span>: Bearer mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg</pre>
+
+<pre><span class="k">POST</span> /coop/sse HTTP/1.1
+<span class="k">Host</span>: mcp.alibaba-inc.com
+<span class="k">Authorization</span>: Bearer mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg
+<span class="k">Content-Type</span>: application/json
+
+{
+  <span class="k">"jsonrpc"</span>: <span class="s">"2.0"</span>,
+  <span class="k">"id"</span>: <span class="n">2</span>,
+  <span class="k">"method"</span>: <span class="s">"tools/call"</span>,
+  <span class="k">"params"</span>: {
+    <span class="k">"name"</span>: <span class="s">"query_recent_workitem"</span>,
+    <span class="k">"arguments"</span>: {}
+  }
+}</pre>
+
+<h2 id="other-apis">其他接口</h2>
+
+<h3 id="检视-access_token">检视 access_token</h3>
+<pre><span class="k">POST</span> /oauth/introspect HTTP/1.1
+<span class="k">Host</span>: mcp.alibaba-inc.com
+<span class="k">Content-Type</span>: application/x-www-form-urlencoded
+
+token=mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg</pre>
+
+<p>返回结果如下：</p>
+<pre>{
+  <span class="k">"active"</span>: <span class="b">true</span>,
+  <span class="k">"scope"</span>: <span class="s">"server:coop"</span>,
+  <span class="k">"client_id"</span>: <span class="s">"cat-ai"</span>,
+  <span class="k">"username"</span>: <span class="s">"buc:feichao.sfc"</span>,
+  <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>,
+  <span class="k">"expires_in"</span>: <span class="n">3600</span>,
+  <span class="k">"empId"</span>: <span class="s">"177403"</span>
+}</pre>
+
+<p>其中 active 字段可判断当前 access_token 是否有效</p>
+
+<h3 id="刷新-access_token">刷新 access_token</h3>
+<ul>
+  <li>access_token 默认有效期为 30 天，30 天后需进行刷新</li>
+  <li>刷新后可得到一对新的 access_token/refresh_token</li>
+  <li>刷新后，旧的 access_token 将在 10 分钟后自动失效，旧的 refresh_token 会立即失效</li>
+</ul>
+
+<p>请求：</p>
+<pre><span class="k">POST</span> /oauth/token HTTP/1.1
+<span class="k">Host</span>: mcp.alibaba-inc.com
+<span class="k">Content-Type</span>: application/x-www-form-urlencoded
+
+grant_type=refresh_token&amp;refresh_token=mcpr_FYh1vYzxk4RSgXX2E3mBVBJujjV9fiaf</pre>
+
+<p>参数：</p>
+
+<table>
+  <thead><tr>
+    <th>参数</th>
+    <th>强制</th>
+    <th>说明</th>
+  </tr></thead>
+  <tbody>
+    <tr><td class="field">grant_type</td><td>是</td><td>授权类型，固定为 "refresh_token"</td></tr>
+    <tr><td class="field">refresh_token</td><td>是</td><td>刷新令牌，以 mcpr_ 开头</td></tr>
+  </tbody>
+</table>
+
+<p>返回值参考上方「获取 access_token」接口</p>
+
+<div class="panel small">
+MCP 网关提供了批量刷新 token 的接口，适合客户端定期在后台调用。详见：<a href="oauth-extensions.html">OAuth 授权扩展</a>
+</div>
+
+<h3 id="撤销-access_token">撤销 access_token</h3>
+
+<p>撤销一个 access_token，对应的 access_token/refresh_token 不能再使用。</p>
+
+<p>请求：</p>
+<pre><span class="k">POST</span> /oauth/revoke HTTP/1.1
+<span class="k">Host</span>: mcp.alibaba-inc.com
+<span class="k">Content-Type</span>: application/x-www-form-urlencoded
+
+token=mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg</pre>
+
+<p>响应 HTTP 状态码 200 表示撤销成功，响应结果如下：</p>
+<pre>{ <span class="k">"revoked"</span>: <span class="b">true</span> }</pre>
+
+<h2 id="error-codes">错误码</h2>
+
+<p>目前我们暂不提供错误码机制。</p>
+<p>请求成功时，HTTP 响应码均为 200。</p>
+<p>请求失败时，HTTP 响应码为 4xx，你可以将 response body 作为整个 "报错信息"。</p>
+
+<h2 id="practices">其他实践</h2>
+
+<p><a href="https://alidocs.dingtalk.com/i/nodes/AR4GpnMqJzKpOoklFKyAPRYo8Ke0xjE3">Aone MCP 调用内网 Inner API 踩坑记录</a></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#basics">基础信息</a>
+      </li>
+      <li><a href="#overview">概览</a>
+      </li>
+      <li><a href="#preparation">准备工作</a>
+      </li>
+      <li><a href="#step1">第一步：请求 code</a>
+      </li>
+      <li><a href="#step2">第二步：获取 access_token</a>
+      </li>
+      <li><a href="#step3">第三步：使用 access_token</a>
+      </li>
+      <li><a href="#other-apis">其他接口</a>
+        <ol>
+          <li><a href="#检视-access_token">检视 access_token</a></li>
+          <li><a href="#刷新-access_token">刷新 access_token</a></li>
+          <li><a href="#撤销-access_token">撤销 access_token</a></li>
+        </ol>
+      </li>
+      <li><a href="#error-codes">错误码</a>
+      </li>
+      <li><a href="#practices">其他实践</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

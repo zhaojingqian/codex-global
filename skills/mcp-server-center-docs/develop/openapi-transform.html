@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>OpenAPI 转为 MCP</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>OpenAPI 转为 MCP</span>
+</nav>
+
+<h1>OpenAPI 转为 MCP</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<ul>
+  <li>无需编写代码，支持将 OpenAPI 一键转换为 MCP Tools</li>
+  <li>支持打通 BUC 免登，详见 <a href="../auth/buc-sso.html">BUC 应用免登</a></li>
+</ul>
+
+<h2 id="steps">操作步骤</h2>
+
+<h3 id="新建-mcp-server">新建 MCP Server</h3>
+
+<p>前往 <a href="https://open.aone.alibaba-inc.com/market">Aone 开放平台</a>，右上角"注册 MCP Server"。注意，当前 MCP Server 要求绑定在平台下，如果没有合适的平台，需要先新建平台。</p>
+
+<p>如果已有平台，也可以从平台下的 MCP 管理进入。</p>
+
+<p>填写 MCP Server 注册表单，接入类型选择 <strong>Open API Transform</strong>，该接入类型需要填写 OpenAPI 的预发和线上 endpoint。</p>
+
+<p>MCP Server 注册完成后，会跳转到 MCP Tool 管理页面。</p>
+
+<h3 id="api-gt-mcp-tools">API -&gt; MCP Tools</h3>
+
+<p>转换过程共 5 步：</p>
+
+<p><strong>1. 上传/输入 OAS / Swagger 3.0.x 文档</strong>（Open API 描述文件）。如果你当前没有现成的 OAS 文档，可以借助 ChatGPT / DeepSeek / Qwen 等生成。</p>
+
+<p><strong>2. 选择需要转换为 MCP Tool 的 API</strong>。当前步骤会解析上述 OAS 文档，通过表格的方式展示 API 基本信息，请确保 OAS 文档正确，否则可能无法正常解析。</p>
+
+<p><strong>3. API 转换为 MCP Tool</strong></p>
+
+<p>在当前步骤下，平台会基于默认的转换规则（见下），基于 API 的描述信息，将其转换为 MCP Tool。可以在当前页面看到 MCP Tool 的名称、描述、入参等信息，也可以看到 MCP 入参实际对应 API 参数及参数位置。</p>
+
+<p>点击"编辑"按钮，可手动调整 MCP Tool 相关信息。</p>
+
+<div class="panel">
+<strong>转换规则介绍</strong><br><br>
+转换后的 MCP Tool 的配置通过一个 JSON 来表示，包含以下几部分：
+<ol>
+  <li><strong>name</strong>：Tool 的名称，默认与 API 的 operationId 一致</li>
+  <li><strong>description</strong>：Tool 描述，默认与 API 的 description 一致</li>
+  <li><strong>inputSchema</strong>：Tool 入参描述，类型是一个 object</li>
+  <li><strong>apiPath</strong>：API 的路径</li>
+  <li><strong>apiMethod</strong>：API 请求方法</li>
+  <li><strong>contentType</strong>：API 请求存在 requestBody 时需要，比如：application/json、application/x-www-form-urlencoded</li>
+  <li><strong>inputMappingRule</strong>：入参转换规则，用于描述 Tool 的参数（inputSchema）如何与 API 的参数对应。inputMappingRule 是一个对象，对象的 key 为 API 参数位置和名称，value 为工具入参/上下文参数/常量。
+    <ul><li><strong>注意：如果 value 是工具的入参或上下文参数时，需要加上 $ 前缀，常量不需要 $ 前缀</strong></li></ul>
+  </li>
+  <li><strong>outputMappingRule</strong>：API 返回结果转换规则，可以编写一段自定义的规则代码（QLExpress），处理 API 返回的结果（暂未实现）</li>
+</ol>
+<br>
+<strong>进阶用法</strong>：<br>
+支持通过 <strong>ctx</strong> 获取上下文相关信息：在实际调用 API 时，我们可能需要将用户工号等信息作为 API 的参数，但又不希望显式地作为 MCP Tool 的参数，希望能直接从当前上下文获取。这种情况下，我们可以在 inputMappingRule 中通过 <code>$ctx.xxx</code> 的方式引用上下文变量。<br><br>
+比如在调用某平台相关接口时，我们需要传递 operator 参数来表示当前操作人员，就可以从上下文获取：
+<pre><span class="k">"inputMappingRule"</span>: {
+  <span class="k">"body.operator"</span>: <span class="s">"$ctx.user.empId"</span>
+}</pre>
+</div>
+
+<p><strong>4. 预发测试</strong></p>
+
+<p>转换完成之后，进入下一步，我们会获得一个预发环境的 MCP Server 的 SSE 链接，可以前往 <a href="https://mcp.alibaba-inc.com/inspector#resources">MCP Inspector</a> 或复制链接前往 Aone Copilot、Cline、Cursor 等客户端验证。</p>
+
+<p>确认预发验证通过之后，点击下一步即可将 MCP Tool 发布线上。</p>
+
+<p><strong>5. 发布线上</strong></p>
+
+<p>点击前往主页，可进入 MCP 服务详情页。</p>
+
+<h3 id="mcp-tool-管理">MCP Tool 管理</h3>
+
+<div class="panel small">管理界面已迁移到 "发布" tab 里</div>
+
+<p>完整走完上述流程之后，我们就得到了一个可以正常使用的 MCP Server。后续如果想对 MCP Tool 进行修改，或需要增加更多的 Tool，可以在 MCP 服务详情页操作。</p>
+
+<p>注意：上述操作仅当前 MCP Server 负责人可见。</p>
+
+<h2 id="others">其他</h2>
+
+<ul>
+  <li>如果你的应用对接了 BUC 登录，可以参考 <a href="../auth/buc-sso.html">BUC 应用免登</a> 打通 BUC 免登～</li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#steps">操作步骤</a>
+        <ol>
+          <li><a href="#新建-mcp-server">新建 MCP Server</a></li>
+          <li><a href="#api-gt-mcp-tools">API -&gt; MCP Tools</a></li>
+          <li><a href="#mcp-tool-管理">MCP Tool 管理</a></li>
+        </ol>
+      </li>
+      <li><a href="#others">其他</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

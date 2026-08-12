@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>Python Aone MCP 研发手册</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>Python Aone MCP 研发手册</span>
+</nav>
+
+<h1>Python Aone MCP 研发手册</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-02-10</div>
+<h2 id="create-app">创建应用</h2>
+
+<ul>
+  <li>前往 <a href="https://cd.faas.alibaba-inc.com/unite/micro/create">https://cd.faas.alibaba-inc.com/unite/micro/create</a></li>
+  <li>选择 <strong>接口服务 &gt; Python Aone MCP</strong>，点击下一步</li>
+  <li>填写应用仓库，任选一个租户，填写函数应用名
+    <ul><li>函数应用名建议用 xxx-mcp 的格式</li></ul>
+  </li>
+</ul>
+
+<h3 id="已有-python-应用">已有 Python 应用</h3>
+
+<p>如果已有 Python 应用，可参考<a href="https://code.alibaba-inc.com/aone-open/mcp-lite-python-demo/blob/master/server.py">该文件</a>实现适配 Aone MCP 网关的 MCP Server。</p>
+
+<h2 id="coding">编码开发</h2>
+
+<h3 id="开发工具">开发工具</h3>
+
+<p>我们使用官方的 MCP SDK 来实现工具（完整文档见 <a href="https://github.com/modelcontextprotocol/python-sdk">Python SDK 的 GitHub 仓库</a>，本文只列出一些基础的示例）</p>
+
+<pre><span class="c"># server.py</span>
+<span class="k">from</span> mcp.server.fastmcp <span class="k">import</span> FastMCP
+
+<span class="c"># Create an MCP server</span>
+mcp = FastMCP(<span class="s">"Demo"</span>)
+
+<span class="c"># Add an addition tool</span>
+<span class="k">@mcp.tool()</span>
+<span class="k">def</span> add(a: int, b: int) -&gt; int:
+    <span class="s">"""Add two numbers"""</span>
+    <span class="k">return</span> a + b
+
+<span class="c"># Add a dynamic greeting resource</span>
+<span class="k">@mcp.resource</span>(<span class="s">"greeting://{name}"</span>)
+<span class="k">def</span> get_greeting(name: str) -&gt; str:
+    <span class="s">"""Get a personalized greeting"""</span>
+    <span class="k">return</span> f<span class="s">"Hello, {name}!"</span></pre>
+
+<h4>参数定义</h4>
+
+<pre><span class="k">from</span> pydantic <span class="k">import</span> Field, BaseModel
+
+<span class="c"># 简单参数场景</span>
+<span class="k">@mcp.tool()</span>
+<span class="k">async def</span> tool_add(
+    a: int = Field(description=<span class="s">"The second number"</span>, default=<span class="n">1</span>),
+    b: int = Field(description=<span class="s">"The second number"</span>, default=<span class="n">1</span>),
+) -&gt; int:
+    <span class="s">"""Add two numbers"""</span>
+    lite_ctx = lite_ctx_vars.get()
+    print(<span class="s">"lite_ctx:"</span>, lite_ctx)
+    <span class="k">return</span> a + b
+
+<span class="c"># 复杂参数场景</span>
+<span class="k">class</span> ComplexObj(BaseModel):
+    name: str = Field(description=<span class="s">"Your name"</span>)
+
+<span class="k">@mcp.tool()</span>
+<span class="k">def</span> tool_complex_exam(
+    obj: ComplexObj = Field(description=<span class="s">"Complex Object"</span>),
+) -&gt; str:
+    <span class="s">"""Get a personalized greeting"""</span>
+    <span class="k">return</span> f<span class="s">"Hello, {obj.name}!"</span></pre>
+
+<ul>
+  <li>借助 Pydantic Field 进行定义，详细用法可参考文档：<a href="https://docs.pydantic.dev/latest/concepts/fields/">https://docs.pydantic.dev/latest/concepts/fields/</a></li>
+</ul>
+
+<h3 id="连接-http-端点">连接 HTTP 端点</h3>
+
+<p>实现工具后，你需要创建两个 HTTP 端点，将工具暴露出来：</p>
+
+<pre><span class="k">from</span> fastapi <span class="k">import</span> FastAPI, Request
+
+<span class="c"># 省略工具定义相关代码</span>
+
+app = FastAPI()
+
+<span class="k">@app.get</span>(<span class="s">"/tools/list"</span>)
+<span class="k">async def</span> list_tools():
+    tools = <span class="k">await</span> mcp.list_tools()
+    <span class="k">return</span> {<span class="s">"tools"</span>: tools}
+
+<span class="k">@app.post</span>(<span class="s">"/tools/call"</span>)
+<span class="k">async def</span> call_tool(request: Request):
+    <span class="k">try</span>:
+        data = <span class="k">await</span> request.json()
+        name = data.get(<span class="s">"name"</span>)
+        arguments = data.get(<span class="s">"arguments"</span>, {})
+
+        <span class="c"># 设置上下文，在工具回调方法中可通过 lite_ctx_vars.get() 进行获取</span>
+        lite_ctx_vars.set(data)
+
+        content = <span class="k">await</span> mcp.call_tool(name, arguments)
+        <span class="k">return</span> {<span class="s">"content"</span>: content, <span class="s">"isError"</span>: <span class="b">False</span>}
+    <span class="k">except</span> Exception <span class="k">as</span> e:
+        traceback.print_exc()
+        <span class="k">return</span> {<span class="s">"content"</span>: [{<span class="s">"type"</span>: <span class="s">"text"</span>, <span class="s">"text"</span>: str(e)}], <span class="s">"isError"</span>: <span class="b">True</span>}</pre>
+
+<p>这段代码创建了两个 HTTP 端点，符合 <a href="gateway-http-spec.html">MCP 网关 HTTP 接入规范</a>：</p>
+<ul>
+  <li><code>/tools/list</code>：GET 请求，用于列出所有可用的工具</li>
+  <li><code>/tools/call</code>：POST 请求，用于调用特定的工具</li>
+</ul>
+
+<div class="panel small">使用不同的 Web 框架时，<code>GET /tools/list</code> 和 <code>POST /tools/call</code> 端点的定义方式不同。如果你正在使用 Flask 或其他 Web 框架，请调整相关代码。</div>
+
+<h2 id="debug">调试</h2>
+
+<h3 id="本地使用-mcp-proxy-代理">本地使用 MCP Proxy 代理</h3>
+
+<p>执行 <code>uv run server.py</code> 在本地启动应用后，打开下面的地址（注意换成你本地的 IP，一般使用 30 开头，只需要替换这个 IP 地址即可）：</p>
+
+<div class="panel"><code>https://mcp.taobao.net/proxy/http/30.166.1.73:9000</code></div>
+
+<p>这是一个日常/办公网环境可用的 MCP SSE 连接地址（这里需要注意，中间是 <strong>http</strong>，而不是 https）。你可以使用 <a href="https://mcp.alibaba-inc.com/inspector#resources">MCP Inspector</a> 或其他 MCP Client 来进行调试</p>
+
+<h3 id="使用-mcp-inspector-进行调试">使用 MCP Inspector 进行调试</h3>
+
+<p><a href="https://mcp.alibaba-inc.com/inspector">https://mcp.alibaba-inc.com/inspector</a></p>
+
+<h3 id="预发调试">预发调试</h3>
+
+<p>将你的 FaaS 应用发布至预发环境，获得一个预发域名，例如 mcp-lite-python-demo.pre-fn.alibaba-inc.com（如果是已有应用，此处换成已有域名）</p>
+
+<p>你可以继续使用 https://mcp.taobao.net/proxy 进行调试，注意预发的时候要用 /proxy/https，例如：</p>
+<p><code>https://mcp.taobao.net/proxy/https/mcp-lite-python-demo.pre-fn.alibaba-inc.com</code></p>
+
+<p>你也可以将 MCP Server 注册到开放市场，并通过开放市场生成预发的 SSE 地址，例如：</p>
+<p><code>http://pre-mcp.alibaba-inc.com/my_mcp/sse?secretKey=xxxxxx</code></p>
+
+<h2 id="publish">正式发布</h2>
+
+<h3 id="将-mcp-server-注册到开放平台">将 MCP Server 注册到开放平台</h3>
+
+<p>访问该<a href="https://open.aone.alibaba-inc.com/mcp/register">页面</a>，在表单中填入 MCP Server 的基本信息，接入类型选择 <strong>HTTP</strong>，并在预发地址/正式地址中填入 FaaS 应用的地址：</p>
+
+<h3 id="将-mcp-server-上架到开放市场">将 MCP Server 上架到开放市场</h3>
+
+<p>正式发布你的 FaaS 应用，确保正式环境成功部署。</p>
+<p>访问 MCP Server 的设置页面，按照页面引导完成上架流程：</p>
+
+<h2 id="advanced">进阶技巧</h2>
+
+<h3 id="传递自定义的上下文">传递自定义的上下文</h3>
+
+<p>你可以使用 <code>contextvars.ContextVar(...)</code> 来传递自定义的上下文，在工具回调中获取当前 HTTP 请求中的任意数据：</p>
+
+<pre><span class="c"># 定义上下文</span>
+<span class="k">import</span> contextvars
+
+lite_ctx_vars = contextvars.ContextVar(<span class="s">"lite_ctx_vars"</span>)
+
+<span class="c"># 设置上下文</span>
+<span class="k">@app.post</span>(<span class="s">"/tools/call"</span>)
+<span class="k">async def</span> call_tool(request: Request):
+    <span class="k">try</span>:
+        data = <span class="k">await</span> request.json()
+        name = data.get(<span class="s">"name"</span>)
+        arguments = data.get(<span class="s">"arguments"</span>, {})
+        <span class="c"># 除了 name / arguments，data 中还包含了 sessionKey/user 等信息</span>
+        <span class="c"># 设置上下文，在工具回调方法中可通过 lite_ctx_vars.get() 进行获取</span>
+        lite_ctx_vars.set(data)
+        <span class="c"># ...省略其他代码...</span>
+
+<span class="c"># 读取上下文中的数据</span>
+<span class="k">@mcp.tool()</span>
+<span class="k">async def</span> tool_callback(arg1, arg2) -&gt; int:
+    lite_ctx = lite_ctx_vars.get()
+    <span class="c"># ...省略其他代码...</span></pre>
+
+<p>data 中的字段请参考：<a href="faas-handbook.html">Aone FaaS MCP 研发手册</a></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#create-app">创建应用</a>
+        <ol>
+          <li><a href="#已有-python-应用">已有 Python 应用</a></li>
+        </ol>
+      </li>
+      <li><a href="#coding">编码开发</a>
+        <ol>
+          <li><a href="#开发工具">开发工具</a></li>
+          <li><a href="#连接-http-端点">连接 HTTP 端点</a></li>
+        </ol>
+      </li>
+      <li><a href="#debug">调试</a>
+        <ol>
+          <li><a href="#本地使用-mcp-proxy-代理">本地使用 MCP Proxy 代理</a></li>
+          <li><a href="#使用-mcp-inspector-进行调试">使用 MCP Inspector 进行调试</a></li>
+          <li><a href="#预发调试">预发调试</a></li>
+        </ol>
+      </li>
+      <li><a href="#publish">正式发布</a>
+        <ol>
+          <li><a href="#将-mcp-server-注册到开放平台">将 MCP Server 注册到开放平台</a></li>
+          <li><a href="#将-mcp-server-上架到开放市场">将 MCP Server 上架到开放市场</a></li>
+        </ol>
+      </li>
+      <li><a href="#advanced">进阶技巧</a>
+        <ol>
+          <li><a href="#传递自定义的上下文">传递自定义的上下文</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>MCP Client 注册流程</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <a href="static-client.html">静态客户端接入指南</a>
+  <span class="sep">/</span>
+  <span>MCP Client 注册流程</span>
+</nav>
+
+<h1>MCP Client 注册流程</h1>
+<div class="meta">作者: 簪星 · 更新时间: 2026-05-15</div>
+<h2 id="preface">前言</h2>
+
+<ul>
+  <li>你的 MCP Client 需要被使用在 <strong>特定的系统或 Aone 应用中</strong></li>
+  <li>每个 MCP Client 唯一归属于一个接入身份</li>
+  <li>接入身份是 Aone 开放平台面向使用者的身份证明，<strong>接入身份必须与 Aone 应用身份关联</strong>（接入身份创建后会自动绑定关联的 Aone 应用，并且同步应用成员，所有成员都可以看见并使用此接入身份）</li>
+  <li>出于 MCP 调用来源管控需求，MCP Client 自身也需要与被使用的 Aone 应用唯一关联，且 <strong>每个 Aone 应用只能创建一个 MCP Client</strong></li>
+  <li>接入身份与 MCP Client 关联的 Aone 应用最好相同（也可以不同，如果在你的研发组织或业务系统中，是一个基础应用下游管理了许多实际业务应用，且不希望组织内有过多的接入身份，那么接入身份可以是这个基础应用，MCP Client 是实际业务应用，归属于基础应用的接入身份下）</li>
+  <li><strong>请使用 Aone 开放平台的正式环境页面进行操作，不要用预发！！！</strong></li>
+</ul>
+
+<h2 id="step1">Step1: 选择/创建接入身份</h2>
+
+<ul>
+  <li>登录至 Aone 开放平台：<a href="https://open.aone.alibaba-inc.com">https://open.aone.alibaba-inc.com</a></li>
+  <li>Aone 应用已有接入身份时，点击 <strong>导航栏接入管理</strong>，选择接入身份：<a href="https://open.aone.alibaba-inc.com/console/identity">https://open.aone.alibaba-inc.com/console/identity</a></li>
+  <li>Aone 应用尚无接入身份时，点击 <strong>右上角快捷入口</strong>，创建接入身份：</li>
+</ul>
+
+<ul>
+  <li>选择你使用这个 MCP Client 的 Aone 应用来创建</li>
+</ul>
+
+<h2 id="step2">Step2: 注册 MCP Client</h2>
+
+<ul>
+  <li>选择/创建好接入身份后，点击进入身份管理页，左侧边栏切换到 <strong>MCP 客户端管理</strong></li>
+  <li>点击 <strong>添加 MCP 客户端</strong></li>
+</ul>
+
+<ul>
+  <li>进入 MCP Client 注册表单，填写信息</li>
+</ul>
+
+<ul>
+  <li>选择你使用这个 MCP Client 的 Aone 应用，<strong>Aone 应用名将作为你的客户端编码（唯一标识，不可重复不可修改）</strong></li>
+  <li>正式/预发回调地址：填写你的 <strong>Aone 应用统一接入部署域名地址，用于接收用户授权后的回调信息</strong>
+    <ul>
+      <li>此处有疑问请先仔细阅读 <a href="https://datatracker.ietf.org/doc/html/draft-ietf-oauth-v2-1-12#section-1">OAuth2.1协议文档</a>、<a href="https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization">MCP 授权协议文档</a> 和 <a href="static-client.html">静态客户端接入指南</a></li>
+      <li>回调地址的作用：在 OAuth 授权流程中，你需要构造一个授权链接，用户在浏览器打开授权链接后，会根据不同的 MCP Server 的配置，重定向至相应的 授权服务器（例如 BUC OAuth2），用户登录 授权服务器并完成身份认证，<strong>重定向至 MCP Client 回调地址并带上 code 和 state 参数</strong></li>
+      <li>回调地址后续支持编辑</li>
+    </ul>
+  </li>
+  <li>填写好注册表单后，点击 <strong>添加客户端（发起审批）</strong>
+    <ul><li>审批流程：接入身份 Owner -> Aone 应用 Owner -> 开放平台系统管理员</li></ul>
+  </li>
+</ul>
+
+<h2 id="step3">Step3: 使用 MCP Client</h2>
+
+<ul>
+  <li>注册审批通过前，客户端 未激活，详情页会展示 BPMS 审批链接，支持撤销后重新编辑并发起审批</li>
+  <li>注册审批通过后，为会为客户端颁发密钥，刷新详情页，客户端更新为 <strong>已激活</strong> 状态即可使用</li>
+  <li>编辑入口在基本信息卡片的右上角</li>
+  <li>客户端编码即为你注册时选择的 Aone 应用名</li>
+  <li>客户端密钥在最下方的配置 tab，<strong>可切换预发/正式环境，不同环境的密钥不同</strong></li>
+  <li>注：如果你需要先在本地开发验证，可以点击 编辑 将 预发环境 的回调地址改为 localhost 进行测试</li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#preface">前言</a>
+      </li>
+      <li><a href="#step1">Step1: 选择/创建接入身份</a>
+      </li>
+      <li><a href="#step2">Step2: 注册 MCP Client</a>
+      </li>
+      <li><a href="#step3">Step3: 使用 MCP Client</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

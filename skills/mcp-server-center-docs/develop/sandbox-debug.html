@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>调试与运维</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>调试与运维</span>
+</nav>
+
+<h1>调试与运维</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+
+<h2 id="ops-entry">运维入口</h2>
+
+<p>MCP 负责人可以在管理页面上看到 "沙箱运维" 面板。该面板会展示活跃的沙箱分组，并提供 WebUI、WebShell 入口：</p>
+
+<h2 id="webui">WebUI</h2>
+
+<p>WebUI 功能：</p>
+<ul>
+  <li>查看日志（右上角）</li>
+  <li>查看活跃的子进程列表及其日志（表格）</li>
+  <li>手动启动子进程，然后进行 inspect</li>
+</ul>
+
+<h2 id="webshell">WebShell</h2>
+
+<p>小提示：</p>
+<ul>
+  <li>登录容器后，可通过 <code>sudo su</code> 切换到 <code>root</code> 用户</li>
+  <li>子进程工作目录：<code>/root/mcp/sessions/{sessionKey}/</code>
+    <ul><li>相关日志文件也会放在该目录下</li></ul>
+  </li>
+  <li>supervisor 进程日志文件：<code>/root/mcp/mcp-sandbox-cli.log</code></li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#ops-entry">运维入口</a>
+      </li>
+      <li><a href="#webui">WebUI</a>
+      </li>
+      <li><a href="#webshell">WebShell</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

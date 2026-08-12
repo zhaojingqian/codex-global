@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>Java 客户端连接 MCP Server 代码参考</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>Java 客户端连接 MCP Server 代码参考</span>
+</nav>
+
+<h1>Java 客户端连接 MCP Server 代码参考</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<div class="panel small">下面的代码是 Kotlin，可以让大模型帮你转换为对应的 Java 代码～</div>
+
+<h2 id="code-example">代码示例</h2>
+
+<pre><span class="k">package</span> com.alibaba.mcp.test
+
+<span class="k">import</span> com.fasterxml.jackson.databind.ObjectMapper
+<span class="k">import</span> io.modelcontextprotocol.client.McpClient
+<span class="k">import</span> io.modelcontextprotocol.client.transport.WebClientStreamableHttpTransport
+<span class="k">import</span> io.modelcontextprotocol.client.transport.WebFluxSseClientTransport
+<span class="k">import</span> io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper
+<span class="k">import</span> io.modelcontextprotocol.spec.McpSchema
+<span class="k">import</span> kotlinx.coroutines.reactor.awaitSingleOrNull
+<span class="k">import</span> org.springframework.web.reactive.function.client.WebClient
+<span class="k">import</span> java.time.Duration
+
+<span class="c">// 同步技术栈请使用</span>
+<span class="k">import</span> io.modelcontextprotocol.client.transport.HttpClientSseClientTransport
+<span class="k">import</span> io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport
+
+
+<span class="c">/**
+ * MCP Java SDK 连接 Aone 开放平台上的 MCP Server 代码片段
+ *
+ * 重点：
+ * - baseUrl 填写 https://mcp.alibaba-inc.com
+ * - sseEndpoint 填写 `"/{server}/sse"`
+ *     * 如果是 Streamable HTTP Transport，则 endpoint 参数填写 `"/{server}/mcp"`
+ * - 通过 WebClient 来配置请求头，包括标准的 Authorization 请求头和自定义的请求头
+ * - 下面的代码使用 webflux 异步技术栈作为代码示例，webmvc 同步技术栈下请替换为相应的类
+ *     * 例如 `HttpClientStreamableHttpTransport`、`HttpClientSseClientTransport`
+ *     * 同时 HTTP 客户端也需要换成 java.net.http.HttpClient
+ * - 重要：client 用完后，一定要进行 close !
+ */</span>
+<span class="k">class</span> AoneMcpDemo {
+    <span class="k">suspend fun</span> demo() {
+        <span class="k">val</span> objectMapper = ObjectMapper() <span class="c">// 这里最好换成 Spring 应用中自动装配的 ObjectMapper</span>
+        <span class="k">val</span> mcpJsonMapper = JacksonMcpJsonMapper(objectMapper)
+
+        <span class="k">val</span> webClientBuilder = WebClient.builder()
+            .baseUrl(<span class="s">"https://mcp.alibaba-inc.com"</span>)
+            .defaultHeaders { headers -&gt;
+                <span class="c">// 设置 OAuth2 授权生成的 access_token</span>
+                headers.setBearerAuth(<span class="s">"mcpa_xxx"</span>)
+
+                <span class="c">// 设置自定义的 header（可选）</span>
+                headers.set(<span class="s">"X-Custome-Header"</span>, <span class="s">"xxx"</span>)
+            }
+
+        <span class="k">val</span> sseTransport = WebFluxSseClientTransport(
+            webClientBuilder,
+            mcpJsonMapper,
+            <span class="s">"/code/sse"</span>, <span class="c">// code 表示代码平台 MCP Server，也可以换成其他的 server 名称</span>
+        )
+
+        <span class="c">// Streamable HTTP Transport 和 SSE Transport 二选一</span>
+        <span class="c">// 推荐优先使用 Streamable HTTP Transport</span>
+        <span class="k">val</span> streamableHttpTransport = WebClientStreamableHttpTransport
+            .builder(webClientBuilder)
+            .jsonMapper(mcpJsonMapper)
+            .endpoint(<span class="s">"/code/mcp"</span>) <span class="c">// code 表示代码平台 MCP Server，也可以换成其他的 server 名称</span>
+            .build()
+
+        <span class="k">val</span> client = McpClient.async(streamableHttpTransport)
+            .initializationTimeout(Duration.ofSeconds(<span class="n">60</span>))
+            .requestTimeout(Duration.ofSeconds(<span class="n">60</span>))
+            .build()
+
+        client.initialize().awaitSingleOrNull()
+
+        <span class="k">val</span> tools = client.listTools().awaitSingleOrNull()
+        println(<span class="s">"MCP Server 中包含以下工具: $tools"</span>)
+
+        <span class="k">val</span> request = McpSchema.CallToolRequest(<span class="s">"tool1"</span>, mapOf(<span class="s">"arg1"</span> to <span class="s">"foo"</span>, <span class="s">"arg2"</span> to <span class="s">"bar"</span>))
+        <span class="k">val</span> result = client.callTool(request).awaitSingleOrNull()
+        println(<span class="s">"tool1 工具调用结果: $result"</span>)
+
+        <span class="c">// 重要：client 用完后，一定要进行 close !</span>
+        client.close()
+    }
+}</pre>
+
+<h2 id="maven-dependency">Maven 依赖</h2>
+
+<pre><span class="c">&lt;!--
+  根据你的技术栈选择 mcp-spring-webflux 或 mcp-spring-webmvc
+  version 建议用最新版
+--&gt;</span>
+&lt;<span class="k">dependency</span>&gt;
+    &lt;<span class="k">groupId</span>&gt;io.modelcontextprotocol.sdk&lt;/<span class="k">groupId</span>&gt;
+    &lt;<span class="k">artifactId</span>&gt;mcp-spring-webflux&lt;/<span class="k">artifactId</span>&gt;
+    &lt;<span class="k">version</span>&gt;<span class="s">0.13.0</span>&lt;/<span class="k">version</span>&gt;
+&lt;/<span class="k">dependency</span>&gt;
+&lt;<span class="k">dependency</span>&gt;
+    &lt;<span class="k">groupId</span>&gt;io.modelcontextprotocol.sdk&lt;/<span class="k">groupId</span>&gt;
+    &lt;<span class="k">artifactId</span>&gt;mcp-spring-webmvc&lt;/<span class="k">artifactId</span>&gt;
+    &lt;<span class="k">version</span>&gt;<span class="s">0.13.0</span>&lt;/<span class="k">version</span>&gt;
+&lt;/<span class="k">dependency</span>&gt;</pre>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#code-example">代码示例</a>
+      </li>
+      <li><a href="#maven-dependency">Maven 依赖</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

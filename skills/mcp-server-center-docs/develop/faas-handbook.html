@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>Aone FaaS MCP 研发手册</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>Aone FaaS MCP 研发手册</span>
+</nav>
+
+<h1>Aone FaaS MCP 研发手册</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<div class="panel">本文介绍如何通过 Aone FaaS 提供 HTTP 接口接入，当前为 Node.js 版本，Python 版本请移步 <a href="python-handbook.html">Python Aone MCP 研发手册</a></div>
+
+<div class="panel small">如果想要通过已有的 应用/FaaS 提供 HTTP 接口接入，请移步 <a href="gateway-http-spec.html">MCP 网关 HTTP 接入规范</a></div>
+
+<h2 id="create-app">创建应用</h2>
+
+<ul>
+  <li>前往 <a href="https://cd.faas.alibaba-inc.com/unite/micro/create">https://cd.faas.alibaba-inc.com/unite/micro/create</a></li>
+  <li>选择 <strong>接口服务 &gt; Nodejs Aone MCP</strong>，点击下一步</li>
+  <li>填写应用仓库，任选一个租户，填写函数应用名
+    <ul><li>函数应用名建议用 xxx-mcp 的格式</li></ul>
+  </li>
+</ul>
+
+<h3 id="已有-node-js-应用">已有 Node.js 应用</h3>
+
+<p>如果已有 Node.js 应用，可以在项目中引入 @ali/mcp-lite，而不必新建 FaaS 应用。</p>
+
+<pre>{
+  <span class="k">"dependencies"</span>: {
+    <span class="k">"@ali/mcp-lite"</span>: <span class="s">"^1.12.0"</span>,
+    <span class="k">"zod"</span>: <span class="s">"^3.25.64"</span>
+  }
+}</pre>
+
+<div class="panel small">@ali/mcp-lite 的最新版本请访问 Ali NPM 获取：<a href="https://anpm.alibaba-inc.com/package/@ali/mcp-lite">https://anpm.alibaba-inc.com/package/@ali/mcp-lite</a></div>
+
+<h2 id="coding">编码开发</h2>
+
+<h3 id="开发工具">开发工具</h3>
+
+<p>引入必要的依赖后，你需要创建一个 <code>McpLiteServer</code> 实例，并通过 <code>server.tool()</code> 方法注册工具。</p>
+
+<pre><span class="k">import</span> { Body, Headers, Provide, ServerlessTrigger, ServerlessTriggerType } <span class="k">from</span> <span class="s">'@midwayjs/core'</span>;
+<span class="k">import</span> { EchoTransport, getLiteExtra, McpLiteCallToolRequest, McpLiteServer } <span class="k">from</span> <span class="s">'@ali/mcp-lite'</span>;
+<span class="k">import</span> * <span class="k">as</span> z <span class="k">from</span> <span class="s">'zod'</span>;
+
+<span class="c">// 注意此时使用 McpLiteServer 代替标准的 McpServer</span>
+<span class="c">// 两者用法相同，详见 MCP 官方文档</span>
+<span class="k">const</span> server = <span class="k">new</span> McpLiteServer({ name: <span class="s">'test'</span>, version: <span class="s">'1.0.0'</span> });
+
+<span class="c">// 通过 server.tool() 定义一个 MCP 工具</span>
+server.tool(
+  <span class="s">'tool_name'</span>,
+  <span class="s">'Tool description'</span>,
+  {
+    arg1: z.string().optional().describe(<span class="s">'Argument description'</span>),
+  },
+  <span class="k">async</span> (args) =&gt; {
+    <span class="k">const</span> arg1 = args.arg1;
+    <span class="k">const</span> extra = getLiteExtra(args);
+
+    <span class="c">// YOUR TOOL IMPLEMENTATION</span>
+
+    <span class="k">return</span> {
+      content: [{ type: <span class="s">'text'</span>, text: <span class="s">'hello'</span> }],
+      isError: <span class="b">false</span>,
+    };
+  },
+);
+<span class="c">// 更多工具注册 server.tool(...)</span></pre>
+
+<h3 id="工具入参与返回值">工具入参与返回值</h3>
+
+<p>工具的入参需要使用 <a href="https://anpm.alibaba-inc.com/package/zod">zod</a> 进行定义。</p>
+
+<p>工具函数应该返回符合 <a href="https://modelcontextprotocol.io/specification/2025-03-26/server/tools#tool-result">MCP 规范的响应对象</a>：</p>
+
+<pre>{
+  content: [
+    {
+      type: <span class="s">'text'</span>,
+      text: <span class="s">'返回的文本内容'</span>
+    }
+  ],
+  isError: <span class="b">false</span>
+}</pre>
+
+<p>如果需要返回错误，可以设置 <code>isError: true</code> 并提供错误信息。</p>
+
+<h4>示例：按关键字搜索 NPM 包</h4>
+
+<pre>server.tool(
+  <span class="s">'search_package_by_keyword'</span>,
+  <span class="s">'根据关键字搜索 Ali NPM 中的包'</span>,
+  { q: z.string().describe(<span class="s">'查询关键字'</span>) },
+  <span class="k">async</span> (args) =&gt; {
+    <span class="k">const</span> { q } = args;
+    <span class="k">const</span> response = <span class="k">await</span> makeHttpRequest(
+      <span class="s">`https://anpx.alibaba-inc.com/open/search?q=${encodeURIComponent(q)}`</span>,
+      { dataType: <span class="s">'json'</span> },
+    );
+    <span class="k">return</span> {
+      content: [{ type: <span class="s">'text'</span>, text: JSON.stringify(response.data) }],
+      isError: <span class="b">false</span>,
+    };
+  },
+);</pre>
+
+<h3 id="配置-transport-并连接-http-端点">配置 Transport 并连接 HTTP 端点</h3>
+
+<p>注册完工具后，需要配置 Transport，<strong>这里必须使用 <code>EchoTransport</code></strong></p>
+
+<pre><span class="k">import</span> { EchoTransport } <span class="k">from</span> <span class="s">'@ali/mcp-lite'</span>;
+
+server.connect(<span class="k">new</span> EchoTransport());</pre>
+
+<p>同时，你需要创建两个 HTTP 端点，并按照以下方式处理 HTTP 请求：</p>
+
+<pre><span class="k">@Provide</span>()
+<span class="k">export class</span> StandardStyleLiteMcpServer {
+  <span class="k">@ServerlessTrigger</span>(ServerlessTriggerType.HTTP, {
+    path: <span class="s">'/tools/list'</span>,
+    method: <span class="s">'get'</span>,
+  })
+  <span class="k">async</span> listTools() {
+    <span class="k">return await</span> server.listTools();
+  }
+
+  <span class="k">@ServerlessTrigger</span>(ServerlessTriggerType.HTTP, {
+    path: <span class="s">'/tools/call'</span>,
+    method: <span class="s">'post'</span>,
+  })
+  <span class="k">async</span> callTool(<span class="k">@Body</span>() body: McpLiteCallToolRequest, <span class="k">@Headers</span> headers: Headers) {
+    <span class="k">return await</span> server.callTool(body, { timeout: <span class="n">60_000</span> });
+  }
+}</pre>
+
+<p>这段代码创建了两个 HTTP 端点，符合 <a href="gateway-http-spec.html">MCP 网关 HTTP 接入规范</a>：</p>
+<ul>
+  <li><code>/tools/list</code>：GET 请求，用于列出所有可用的工具</li>
+  <li><code>/tools/call</code>：POST 请求，用于调用特定的工具</li>
+</ul>
+
+<div class="panel small">使用不同的 Web 框架时，<code>GET /tools/list</code> 和 <code>POST /tools/call</code> 端点的定义方式不同，请根据你正在使用的 Web 框架调整相应的代码。</div>
+
+<p>下面是使用 <a href="https://anpm.alibaba-inc.com/package/express">Express</a> 作为 Web 框架的示例代码：</p>
+
+<pre><span class="k">import</span> * <span class="k">as</span> express <span class="k">from</span> <span class="s">'express'</span>;
+<span class="k">import</span> { z } <span class="k">from</span> <span class="s">'zod'</span>;
+<span class="k">import</span> { EchoTransport, McpLiteServer } <span class="k">from</span> <span class="s">'@ali/mcp-lite'</span>;
+
+<span class="k">const</span> server = <span class="k">new</span> McpLiteServer({ name: <span class="s">'test'</span>, version: <span class="s">'1.0.0'</span> });
+
+<span class="c">// server.tool(tool1);</span>
+<span class="c">// server.tool(tool2);</span>
+
+server.connect(<span class="k">new</span> EchoTransport());
+
+<span class="k">const</span> app = express();
+app.use(express.json());
+
+app.get(<span class="s">'/tools/list'</span>, <span class="k">async</span> (req, res) =&gt; {
+  res.json(<span class="k">await</span> server.listTools());
+});
+
+app.post(<span class="s">'/tools/call'</span>, <span class="k">async</span> (req, res) =&gt; {
+  res.json(<span class="k">await</span> server.callTool(req.body, { timeout: <span class="n">60000</span> }));
+});
+
+app.listen(<span class="n">8001</span>, () =&gt; {
+  console.log(<span class="s">'server is running on 8001'</span>);
+});</pre>
+
+<h2 id="debug">调试</h2>
+
+<h3 id="本地使用-mcp-proxy-代理">本地使用 MCP Proxy 代理</h3>
+
+<p>执行 tnpm install 安装项目依赖后，运行 <code>tnpm run dev</code>，然后打开下面的地址（注意换成你本地的 IP，一般使用 30 开头，只需要替换这个 IP 地址即可）：</p>
+
+<div class="panel"><code>https://mcp.taobao.net/proxy/http/30.166.1.73:7001</code></div>
+
+<p>这是一个日常/办公网环境可用的 MCP SSE 连接地址，这里需要注意，前面一定是 https 的，你可以使用 <a href="https://mcp.alibaba-inc.com/inspector#resources">MCP Inspector</a> 或其他 MCP Client 来进行调试</p>
+
+<h3 id="使用-mcp-inspector-进行调试">使用 MCP Inspector 进行调试</h3>
+
+<p><a href="https://mcp.alibaba-inc.com/inspector">https://mcp.alibaba-inc.com/inspector</a></p>
+
+<h3 id="预发调试">预发调试</h3>
+
+<p>将你的 FaaS 应用发布至预发环境，获得一个预发域名，例如 aone-base-mcp.pre-fn.alibaba-inc.com。（如果是已有的 Node.js 应用，此处换成自定义的域名）</p>
+
+<p>你可以继续使用 https://mcp.taobao.net/proxy 进行调试，注意预发的时候要用 /proxy/https，例如：</p>
+
+<p><code>https://mcp.taobao.net/proxy/https/test-mcp-server-nodejs.pre-fn.alibaba-inc.com</code></p>
+
+<p>你也可以将 MCP Server 注册到开放市场，并通过开放市场生成预发的 SSE 地址，例如：</p>
+
+<p><code>http://pre-mcp.alibaba-inc.com/my_mcp/sse</code></p>
+
+<h2 id="publish">正式发布</h2>
+
+<h3 id="将-mcp-server-注册到开放平台">将 MCP Server 注册到开放平台</h3>
+
+<p>访问该<a href="https://open.aone.alibaba-inc.com/mcp/register">页面</a>，在表单中填入 MCP Server 的基本信息，接入类型选择 <strong>HTTP</strong>，并在预发地址/正式地址中填入 FaaS 应用的地址：</p>
+
+<h3 id="将-mcp-server-上架到开放市场">将 MCP Server 上架到开放市场</h3>
+
+<p>正式发布你的 FaaS 应用（或是已有的 Node.js 应用），确保正式环境工具正常工作。</p>
+
+<p>访问 MCP Server 的设置页面，按照页面引导完成上架流程：</p>
+
+<h2 id="advanced">进阶技巧</h2>
+
+<h3 id="获取上下文">获取上下文</h3>
+
+<div class="panel small">部分字段依赖新版本的 SDK，请注意升级项目中的 @ali/mcp-lite 版本</div>
+
+<p>通过 <code>getLiteExtra()</code> 可以在工具回调中获取调用上下文：</p>
+
+<pre>server.tool(
+  <span class="s">'show_call_tool_request'</span>,
+  <span class="s">'展示调用工具请求'</span>,
+  {
+    arg: z.any().optional(),
+  },
+  <span class="k">async</span> (args) =&gt; {
+    <span class="k">const</span> extra = getLiteExtra(args);
+    <span class="c">// const { sessionKey, user, data, query } = extra;</span>
+
+    <span class="k">const</span> text = JSON.stringify({ arg: args.arg, extra });
+    <span class="k">return</span> {
+      content: [{ type: <span class="s">'text'</span>, text: text }],
+      isError: <span class="b">false</span>,
+    };
+  },
+);</pre>
+
+<p>这可以帮助你获取：</p>
+<ul>
+  <li><code>sessionKey</code>：会话唯一标识</li>
+  <li><code>user</code>：当前 BUC 用户信息
+    <ul>
+      <li><code>user.loginName</code>：用户域账号（邮箱前缀）</li>
+      <li><code>user.empId</code>：员工工号（注意工号前不带 0）</li>
+    </ul>
+  </li>
+  <li><code>query</code>：客户端连接 SSE 时的请求参数
+    <ul>
+      <li>可用于透传自定义的业务字段，query 中不包含 secretKey、private_token 等敏感字段</li>
+      <li>示例：客户端通过 <code>https://mcp.alibaba-inc.com/test/sse?foo=bar</code> 进行连接时，在 MCP Server 侧可以获取到 <code>{ "foo": "bar" }</code> 这样一个 query 对象</li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="传递自定义的上下文">传递自定义的上下文</h3>
+
+<p>你可以使用 Node.js 标准库中的 <code>AsyncLocalStorage</code> 来传递自定义的上下文，满足更加灵活的消费场景：</p>
+
+<pre><span class="k">import</span> { AsyncLocalStorage } <span class="k">from</span> <span class="s">'node:async_hooks'</span>;
+
+<span class="k">const</span> asyncLocalStorage = <span class="k">new</span> AsyncLocalStorage();
+
+<span class="k">const</span> server = <span class="k">new</span> McpLiteServer({ name: <span class="s">'mcp-test'</span>, version: <span class="s">'1.0.0'</span> });
+
+server.tool(
+  <span class="s">'name'</span>,
+  <span class="s">'description'</span>,
+  {
+    arg: z.string(),
+  },
+  <span class="k">async</span> (args) =&gt; {
+    <span class="c">// 获取自定义的上下文</span>
+    <span class="k">const</span> ctx = asyncLocalStorage.getStore();
+
+    <span class="c">// 剩余工具逻辑...</span>
+  },
+);
+
+<span class="c">// 调整 '/tools/call' 路由</span>
+app.post(<span class="s">'/tools/call'</span>, <span class="k">async</span> (req, res) =&gt; {
+  <span class="c">// ctx 可以是任意自定义数据</span>
+  <span class="c">// 你也可以将 ctx 设置为 req.body，这样工具回调中可以获取到本次 POST 请求的所有数据</span>
+  <span class="k">const</span> ctx = {};
+  <span class="k">return await</span> asyncLocalStorage.run(ctx, <span class="k">async</span> () =&gt; {
+    res.json(<span class="k">await</span> server.callTool(req.body, { timeout: <span class="n">60000</span> }));
+  });
+});</pre>
+
+<h3 id="使用个人账号进行调试">使用个人账号进行调试</h3>
+
+<p>使用 <code>http://mcp.taobao.net/proxy/http/</code> 代理调试开发时，getLiteExtra 获取得到的是 <strong>匿名用户的信息</strong>，你可以在链接后面加上<a href="https://code.alibaba-inc.com/profile/account">个人 Token</a>，切换到个人账号调试，链接格式为：</p>
+
+<p><code>http://mcp.taobao.net/proxy/http/30.166.1.73:7001?private_token=xxxxxxxxxxx</code></p>
+
+<p>注意：当 MCP Server 发布到预发/正式环境时，getLiteExtra 总是可以获取到某个 BUC 用户的信息。</p>
+
+<h3 id="对接-buc-免登">对接 BUC 免登</h3>
+
+<p>详见文档：<a href="../auth/buc-sso.html">BUC 应用免登</a></p>
+
+<p><strong>注意事项：</strong></p>
+<ul>
+  <li>HTTP 接入类型（例如 <a href="faas-handbook.html">Node.js Aone FaaS 应用</a>）：
+    <ul>
+      <li>下游可通过 <code>BUC-SSO-TICKET</code> 请求头获取 Ticket</li>
+      <li>若 <code>mcp.buc-sso-ticket.include-in-query=true</code>（该选项默认为 true），则 ticket 会同时放在 SSO_TICKET 查询参数上</li>
+      <li>注意：网关请求 tools/list 接口时，是没有用户身份的，ticket 仅在调用 tools/call 接口才会提供。</li>
+    </ul>
+  </li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#create-app">创建应用</a>
+        <ol>
+          <li><a href="#已有-node-js-应用">已有 Node.js 应用</a></li>
+        </ol>
+      </li>
+      <li><a href="#coding">编码开发</a>
+        <ol>
+          <li><a href="#开发工具">开发工具</a></li>
+          <li><a href="#工具入参与返回值">工具入参与返回值</a></li>
+          <li><a href="#配置-transport-并连接-http-端点">配置 Transport 并连接 HTTP 端点</a></li>
+        </ol>
+      </li>
+      <li><a href="#debug">调试</a>
+        <ol>
+          <li><a href="#本地使用-mcp-proxy-代理">本地使用 MCP Proxy 代理</a></li>
+          <li><a href="#使用-mcp-inspector-进行调试">使用 MCP Inspector 进行调试</a></li>
+          <li><a href="#预发调试">预发调试</a></li>
+        </ol>
+      </li>
+      <li><a href="#publish">正式发布</a>
+        <ol>
+          <li><a href="#将-mcp-server-注册到开放平台">将 MCP Server 注册到开放平台</a></li>
+          <li><a href="#将-mcp-server-上架到开放市场">将 MCP Server 上架到开放市场</a></li>
+        </ol>
+      </li>
+      <li><a href="#advanced">进阶技巧</a>
+        <ol>
+          <li><a href="#获取上下文">获取上下文</a></li>
+          <li><a href="#传递自定义的上下文">传递自定义的上下文</a></li>
+          <li><a href="#使用个人账号进行调试">使用个人账号进行调试</a></li>
+          <li><a href="#对接-buc-免登">对接 BUC 免登</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

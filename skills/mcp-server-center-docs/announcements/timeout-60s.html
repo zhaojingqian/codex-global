@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>解除 MCP 单次工具调用 60 秒的限制</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>解除 MCP 单次工具调用 60 秒的限制</span>
+</nav>
+
+<h1>解除 MCP 单次工具调用 60 秒的限制</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2025-12-29</div>
+<div class="panel"><strong>先说结论：</strong>"超时时间" 与整个调用链路上所有节点都有关，Aone 侧仅能保证 "网关自身支持 60s 以上超时时间"，无法保证调用链路上其他节点不会超时。</div>
+
+<h2 id="why">为什么会有 60秒超时的限制？</h2>
+
+<p>默认情况下，Aone 应用（包括 Aone FaaS 应用）使用统一接入（或 VIP 接入），如果单个请求 60 秒没有响应（流式场景下 60 秒没有增量数据），统一接入会自动断开连接，导致 MCP 工具调用出错。</p>
+
+<p>详见：<a href="https://aliyuque.antfin.com/mcnz0z/zu2lyi/gdrq6q">https://aliyuque.antfin.com/mcnz0z/zu2lyi/gdrq6q</a></p>
+
+<h2 id="solution">解决方案</h2>
+
+<p>目前比较稳定的链路是 <strong>通过 Java SDK 接入 MCP 网关</strong>，因为该链路底层使用 HSF 对接、且 HSF 不限制超时时间。其他的调用链路目前不做保证。</p>
+
+<h3 id="mcp-网关具体实现">MCP 网关具体实现</h3>
+
+<p>对于客户端调用某个工具的 POST 请求，MCP 网关采用流式响应，每隔一段时间输出 "Waiting for tool to complete"，使得在每个 60秒时间窗口内总是有新增内容，如下图：</p>
+
+<p>同时网关新增 <code>mcp.tool-call-timeout</code> 的选项，允许 MCP Server 开发者自定义超时时间。</p>
+
+<h2 id="manual">操作手册</h2>
+
+<h3 id="调整客户端超时时间">调整客户端超时时间</h3>
+
+<p>大部分客户端可以设置工具调用的超时时间，注意进行调整。</p>
+
+<h4>MCP Inspector 配置方法</h4>
+<p>在 MCP Inspector 的 Settings 中，将 Request Timeout 设置为更大的值（例如 600000ms）。</p>
+
+<h4>Node.js SDK 中的 Client 配置方法</h4>
+<p>在创建 Client 实例时，通过 <code>requestTimeout</code> 参数设置超时时间。</p>
+
+<h3 id="调整-mcp-server-在网关上的超时时间配置">调整 MCP Server 在网关上的超时时间配置</h3>
+
+<p>前往你的 MCP Server 设置页面，在选项中添加 <code>mcp.tool-call-timeout=600s</code>。</p>
+
+<p>如果你正在使用 Aone FaaS 应用，继续在选项中添加 <code>http.use-faas-vipserver=true</code></p>
+
+<p><strong>注意预发和线上环境需要分别配置。</strong></p>
+
+<h3 id="调整-java-sdk-接入配置或-node-js-faas-配置">调整 Java SDK 接入配置或 Node.js FaaS 配置</h3>
+
+<h4>Java SDK 接入</h4>
+
+<p>设置 HSF 的超时时间</p>
+<pre><span class="c"># 10 分钟</span>
+<span class="k">mcp.hsf.server.timeout</span>=<span class="n">600000</span></pre>
+
+<h4>Aone FaaS（Node.js）接入</h4>
+
+<ul>
+  <li>修改 FaaS 源码中的超时配置
+    <ul><li>TypeScript SDK 中 <code>server.callTool()</code> 默认超时时间为 60秒，需要换成更大的值</li></ul>
+  </li>
+</ul>
+<pre><span class="k">await</span> server.callTool(body, { timeout: <span class="n">60000</span> }) <span class="c">// 此处的 timeout 需要改为更大的值</span></pre>
+
+<ul>
+  <li>修改函数配置中的线上超时时间<strong>（这个配置仅针对线上环境有效，预发环境为固定值）</strong></li>
+</ul>
+
+<h3 id="修改调用链路上其他节点的超时配置">修改调用链路上其他节点的超时配置</h3>
+
+<p>如有</p>
+
+<h2 id="alternatives">其他潜在方案计划</h2>
+
+<ul>
+  <li>业务系统将原来的同步接口改为异步接口，即调用接口立刻返回一个"任务 ID"，客户端随后使用任务 ID 轮询结果</li>
+  <li>使用 <a href="https://alidocs.dingtalk.com/i/nodes/kDnRL6jAJMLgNkw7tZ1PvvpBVyMoPYe1">统一接入的新网关</a> 进行接入</li>
+</ul>
+
+<h2 id="refs">相关文档</h2>
+<ul>
+  <li><a href="https://yuque.alibaba-inc.com/tengine/yaxwyo/pm51m2?#sFwNS">https://yuque.alibaba-inc.com/tengine/yaxwyo/pm51m2</a></li>
+  <li><a href="https://aliyuque.antfin.com/mcnz0z/zu2lyi/gdrq6q">https://aliyuque.antfin.com/mcnz0z/zu2lyi/gdrq6q</a></li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#why">为什么会有 60秒超时的限制？</a>
+      </li>
+      <li><a href="#solution">解决方案</a>
+        <ol>
+          <li><a href="#mcp-网关具体实现">MCP 网关具体实现</a></li>
+        </ol>
+      </li>
+      <li><a href="#manual">操作手册</a>
+        <ol>
+          <li><a href="#调整客户端超时时间">调整客户端超时时间</a></li>
+          <li><a href="#调整-mcp-server-在网关上的超时时间配置">调整 MCP Server 在网关上的超时时间配置</a></li>
+          <li><a href="#调整-java-sdk-接入配置或-node-js-faas-配置">调整 Java SDK 接入配置或 Node.js FaaS 配置</a></li>
+          <li><a href="#修改调用链路上其他节点的超时配置">修改调用链路上其他节点的超时配置</a></li>
+        </ol>
+      </li>
+      <li><a href="#alternatives">其他潜在方案计划</a>
+      </li>
+      <li><a href="#refs">相关文档</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

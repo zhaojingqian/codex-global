@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>MCP 网关 HTTP 接入规范</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>MCP 网关 HTTP 接入规范</span>
+</nav>
+
+<h1>MCP 网关 HTTP 接入规范</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<h2 id="intro">简介</h2>
+
+<p>本方案介绍了一个基于 MCP 的简化版本（下称 MCP-Lite），用于支持阿里集团内二方开发者自定义 MCP Server 的需求。二方开发者提供符合要求的 HTTP 接口（以下称为 MCP Provider），经过 Aone MCP 网关转换后，即可对外提供 MCP 协议。</p>
+
+<h2 id="context">系统上下文</h2>
+
+<p>参考 <a href="https://modelcontextprotocol.io/specification/2025-06-18/server/tools#message-flow">MCP Tool Message Flow</a>，引入 MCP-Lite 后的流程如下：</p>
+
+<pre><span class="c">阶段：创建 MCP 连接</span>
+User -&gt; MCP Client: 添加 MCP Server，连接地址: mcp.aone.alibaba-inc...
+MCP Client -&gt; MCP Server Center: Connect
+MCP Server Center -&gt; MCP Client: HTTP 200, Content-Type: text/event-stream (保持 SSE 长连接)
+
+<span class="c">阶段：列出 Tool</span>
+MCP Client -&gt; MCP Server Center: MCP Message, method: <span class="s">"tools/list"</span>
+MCP Server Center -&gt; MCP Provider: <span class="k">GET</span> /tools/list
+MCP Provider -&gt; MCP Server Center: 工具列表元数据
+
+<span class="c">阶段：调用 Tool</span>
+User -&gt; MCP Client: 用户输入
+MCP Client -&gt; MCP Server Center: MCP Message, method: <span class="s">"tools/call"</span>, params: {<span class="s">"name"</span>: <span class="s">"get_weather"</span>}
+MCP Server Center -&gt; MCP Provider: <span class="k">POST</span> /tools/call {<span class="s">"name"</span>: <span class="s">"get_weather"</span>}
+MCP Provider -&gt; MCP Server Center: 工具调用结果
+MCP Server Center -&gt; MCP Client: (使用 SSE 长连接返回结果)</pre>
+
+<h2 id="protocol">MCP-Lite 协议</h2>
+
+<p>目前 MCP 中 Tools 相关的方法主要有以下三个：tools/list、tools/call、notifications/tools/list_changed。</p>
+
+<p>在 MCP-Lite 中，我们用<strong>普通的 HTTP 接口</strong>代替 MCP 的 jsonrpc 接口。接口路径与 jsonrpc method 相同，数据格式与 MCP 尽量保持相同，方便后续复用 MCP 已有 SDK。</p>
+
+<h3 id="列出工具">列出工具</h3>
+
+<p>请求</p>
+<pre><span class="k">GET</span> {endpoint}/tools/list</pre>
+
+<p>返回结果（与 MCP 标准一致）</p>
+<pre>{
+  <span class="k">"tools"</span>: [
+    {
+      <span class="k">"name"</span>: <span class="s">"get_weather"</span>,
+      <span class="k">"description"</span>: <span class="s">"Get current weather information for a location"</span>,
+      <span class="k">"inputSchema"</span>: {
+        <span class="k">"type"</span>: <span class="s">"object"</span>,
+        <span class="k">"properties"</span>: {
+          <span class="k">"location"</span>: {
+            <span class="k">"type"</span>: <span class="s">"string"</span>,
+            <span class="k">"description"</span>: <span class="s">"City name or zip code"</span>
+          }
+        },
+        <span class="k">"required"</span>: [<span class="s">"location"</span>]
+      }
+    }
+  ]
+}</pre>
+
+<h3 id="调用工具">调用工具</h3>
+
+<p>请求</p>
+<pre><span class="k">POST</span> {endpoint}/tools/call
+Content-Type: application/json
+
+{
+  <span class="k">"name"</span>: <span class="s">"get_weather"</span>,
+  <span class="k">"arguments"</span>: {
+    <span class="k">"location"</span>: <span class="s">"New York"</span>
+  },
+
+  <span class="c">// 以下为 MCP-Lite 扩展字段</span>
+  <span class="k">"sessionKey"</span>: <span class="s">"SbWvOyeba1dTdSXa"</span>,
+  <span class="k">"user"</span>: {
+    <span class="k">"loginName"</span>: <span class="s">"feichao.sfc"</span>,
+    <span class="k">"empId"</span>: <span class="s">"177403"</span>,
+    <span class="k">"name"</span>: <span class="s">"飞超"</span>
+  },
+  <span class="k">"state"</span>: <span class="s">"这里是 lite/init-state 接口返回的数据，可以为任意数据"</span>
+}</pre>
+
+<p>返回结果（与 MCP 标准一致）</p>
+<pre>{
+  <span class="k">"content"</span>: [
+    {
+      <span class="k">"type"</span>: <span class="s">"text"</span>,
+      <span class="k">"text"</span>: <span class="s">"Current weather in New York:\nTemperature: 72°F\nConditions: Partly cloudy"</span>
+    }
+  ],
+  <span class="k">"isError"</span>: <span class="b">false</span>
+}</pre>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#intro">简介</a>
+      </li>
+      <li><a href="#context">系统上下文</a>
+      </li>
+      <li><a href="#protocol">MCP-Lite 协议</a>
+        <ol>
+          <li><a href="#列出工具">列出工具</a></li>
+          <li><a href="#调用工具">调用工具</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>MCP 身份认证概览</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>MCP 身份认证概览</span>
+</nav>
+
+<h1>MCP 身份认证概览</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-04-29</div>
+<div class="panel"><strong>当前文档仅适用于 Aone MCP 网关上的 MCP Server。</strong><br><br>当前文档不适用于 Interface Transform 类型。<a href="https://aigw-portal.alibaba-inc.com/">zetta 网关</a>文档请移步：<a href="https://alidocs.dingtalk.com/i/nodes/gvNG4YZ7Jnxop15OCypkllMXW2LD0oRE">Welcome to ZettaGate</a></div>
+
+<h2 id="credentials">身份凭证</h2>
+
+<p>获取 MCP Server 地址后，MCP 客户端需要提供有效的 "身份凭证" 来连接 MCP Server 并创建 MCP 会话。</p>
+
+<p>当前 Aone MCP 网关支持以下凭证类型：</p>
+<ul>
+  <li>代码平台 Private Token</li>
+  <li>Aone MCP 网关颁发的 MCP OAuth Token</li>
+  <li>应用可信身份</li>
+</ul>
+
+<p><strong>创建 MCP 会话时，客户端至少需要提供一种凭证。</strong>缺少有效凭证时，Aone MCP 网关将拒绝请求并返回 <code>401 Unauthorized</code>。</p>
+
+<div class="panel small"><strong>为什么需要凭证？</strong><br>Aone MCP 网关需要记录 MCP 请求的来源身份（身份可以是 BUC 用户、OAuth 客户端、或是 Aone 应用），确保 MCP 流量可溯源、可审计、可管控。当发生异常调用时，我们可以通过请求来源身份快速找到相关责任人。</div>
+
+<h2 id="private-token">Private Token 鉴权</h2>
+
+<p>Private Token 是由代码平台颁发给 BUC 个人账号的凭证。MCP 客户端可以使用 Private Token 作为 BUC 个人身份凭证来创建 MCP 会话。</p>
+
+<h3 id="凭证传递方式">凭证传递方式</h3>
+
+<p>客户端可以在请求中添加 <code>PRIVATE-TOKEN</code> 请求头：</p>
+<pre><span class="k">POST</span> http://mcp.alibaba-inc.com/code/mcp HTTP/1.1
+<span class="k">PRIVATE-TOKEN</span>: ***********</pre>
+
+<p>对应的 mcp.json 如下：</p>
+<pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"code"</span>: {
+      <span class="k">"url"</span>: <span class="s">"https://mcp.alibaba-inc.com/code/mcp"</span>,
+      <span class="k">"headers"</span>: {
+        <span class="k">"PRIVATE-TOKEN"</span>: <span class="s">"8sJH**********"</span>
+      }
+    }
+  }
+}</pre>
+
+<p>客户端也可以通过 Bearer Token 进行传递：</p>
+<pre><span class="k">POST</span> http://mcp.alibaba-inc.com/code/mcp HTTP/1.1
+<span class="k">Authorization</span>: Bearer 8sJH**********</pre>
+
+<h3 id="凭证获取方式">凭证获取方式</h3>
+
+<p>Private Token 可在以下页面获取：<a href="https://code.alibaba-inc.com/profile/account">https://code.alibaba-inc.com/profile/account</a></p>
+
+<h3 id="注意事项">注意事项</h3>
+
+<div class="panel">
+<strong>Private Token 可通过 Aone MCP 网关的鉴权校验，但不一定满足 MCP Server 本身的工具调用鉴权要求</strong>
+<ul>
+  <li>举个例子：Aone MCP 市场上有一部分 MCP Server 依赖 BUC OAuth token 进行免登，Private Token 无法用于生成免登 Ticket</li>
+  <li>再举个例子：部分 MCP Server 使用其他授权服务器颁发的 token（例如该<a href="https://open.aone.alibaba-inc.com/mcp/server/yuque">语雀 MCP Server</a>）</li>
+</ul>
+当 Private Token 无法满足鉴权要求时，请使用标准 OAuth2 授权流程。
+</div>
+
+<h2 id="oauth">MCP OAuth 鉴权</h2>
+
+<p>Aone MCP 网关支持标准的 OAuth 授权流程：MCP 客户端对接该流程后，可以获取用户授权，安全地访问 Aone MCP 市场上的 MCP Server。</p>
+
+<h3 id="凭证传递方式-5454">凭证传递方式</h3>
+
+<p>客户端通过 Bearer Token 传递 token：</p>
+<pre><span class="k">POST</span> http://mcp.alibaba-inc.com/code/mcp HTTP/1.1
+<span class="k">Authorization</span>: Bearer mcpa_xxxxxxxxxxxxx</pre>
+
+<h3 id="凭证获取方式-26a8">凭证获取方式</h3>
+
+<p>MCP 客户端对接 OAuth 授权流程，完成用户授权后，可获取 <code>mcpa_</code> 开头的 token（注意该 token 默认有 30 天有效期的限制）。</p>
+
+<p>Aone MCP 网关当前支持以下两类客户端，开发者可以根据使用场景选择适合类型：</p>
+<ul>
+  <li>标准 OAuth2.0 授权（授权码模式）
+    <ul><li>接入文档：<a href="static-client.html">静态客户端接入指南</a></li></ul>
+  </li>
+  <li>MCP 2025-06-18 协议版本 OAuth2.1
+    <ul>
+      <li>适用于常见编程软件，例如 Cursor、Claude Code</li>
+      <li>接入/使用文档：<a href="dynamic-client.html">动态客户端使用指南</a></li>
+    </ul>
+  </li>
+</ul>
+
+<p>标准 OAuth2.0 适用于绝大部分内部客户端，例如 <a href="https://aone-agent.alibaba-inc.com/">Aone Agent</a>、<a href="https://1d.alibaba-inc.com/">OneDay</a>。Aone MCP 网关会颁发 client_id 和 client_secret，客户端使用这些信息发起授权流程。</p>
+
+<p>动态客户端则更适用于那些通用的 AI 编程软件，例如 Cursor、Claude Code 就实现了标准的 OAuth2.1 授权流程。动态客户端不需要提前获取 client_id/client_secret，可以通过标准协议对接多种不同来源的 MCP Server。</p>
+
+<h2 id="app-identity">应用可信身份</h2>
+
+<p>客户端（Aone 应用）集成 Normandy Auth SDK，并在连接 MCP Server 时提供 SDK 生成的请求头，详见 <a href="system-auth.html">系统间授权</a>、<a href="https://aliyuque.antfin.com/dfotnk/xmctvv/vy4cuv17f63g3p4x">Normandy Auth SDK 文档</a></p>
+
+<p>适用场景：</p>
+<ul>
+  <li>用户已在可信的系统或客户端软件中完成登录，例如阿里钉、Aone AI</li>
+  <li>MCP Client 与 MCP Provider 来自同一个团队或部门，Provider 信任来自 Client 的请求</li>
+</ul>
+
+<h2 id="how-to-choose">「我该选择哪种鉴权方式？」</h2>
+
+<h3 id="你是-mcp-server-用户">你是 MCP Server 用户</h3>
+<p>场景描述：你期望在某个 MCP 客户端中使用 Aone MCP 市场上的 MCP Server</p>
+<ul>
+  <li>如果 MCP 客户端支持 OAuth 授权流程，则直接在客户端中发起授权</li>
+  <li>如果 MCP 客户端不支持 OAuth，但允许你手动输入 Authorization Header 或自定义请求头，则建议使用 Private Token
+    <ul><li>对于一小部分无法使用 Private Token 通过鉴权的 MCP Server，可访问<a href="https://open.aone.alibaba-inc.com/console/home/token">该页面</a>手动创建 token</li></ul>
+  </li>
+</ul>
+
+<h3 id="你是-agent-开发者">你是 Agent 开发者</h3>
+
+<h4>场景一：以某个固定的身份使用 MCP Server</h4>
+<ul>
+  <li>申请一个 BUC 公共账号，获取该公共账号的 Private Token</li>
+  <li>在 Agent 中使用该 Private Token 连接 MCP Server 并调用工具</li>
+</ul>
+
+<h4>场景二：以用户身份调用 MCP Server</h4>
+<ul>
+  <li>申请 OAuth 客户端，当用户使用 Agent 时，发起 OAuth 授权流程并获取用户 token</li>
+  <li>文档 → <a href="static-client.html">静态客户端接入指南</a></li>
+</ul>
+
+<h4>场景三：不需要经过用户授权，以用户身份调用指定的 MCP Server</h4>
+<ul>
+  <li>应用可信身份</li>
+  <li>文档 → <a href="system-auth.html">系统间授权</a></li>
+</ul>
+
+<h3 id="你是-mcp-工具的开发者">你是 MCP 工具的开发者</h3>
+<p>作为 MCP 工具的开发者，你在接入 MCP 网关时的一些选择会影响 "MCP 客户端与 MCP 网关" 之间的鉴权方式。例如启用 <a href="../auth/buc-sso.html">BUC 应用免登</a> 后，MCP 客户端必须通过 OAuth 来连接 MCP Server。</p>
+<p>"Aone MCP 网关与 MCP 工具提供方" 之间的鉴权能力详见 → <a href="server-auth-guide.html">MCP Server 接入指南</a></p>
+
+<h2 id="further-reading">扩展阅读</h2>
+<ul>
+  <li>ATA 介绍文档：<a href="https://ata.atatech.org/articles/11020425259">https://ata.atatech.org/articles/11020425259</a></li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#credentials">身份凭证</a>
+      </li>
+      <li><a href="#private-token">Private Token 鉴权</a>
+        <ol>
+          <li><a href="#凭证传递方式">凭证传递方式</a></li>
+          <li><a href="#凭证获取方式">凭证获取方式</a></li>
+          <li><a href="#注意事项">注意事项</a></li>
+        </ol>
+      </li>
+      <li><a href="#oauth">MCP OAuth 鉴权</a>
+        <ol>
+          <li><a href="#凭证传递方式-5454">凭证传递方式</a></li>
+          <li><a href="#凭证获取方式-26a8">凭证获取方式</a></li>
+        </ol>
+      </li>
+      <li><a href="#app-identity">应用可信身份</a>
+      </li>
+      <li><a href="#how-to-choose">「我该选择哪种鉴权方式？」</a>
+        <ol>
+          <li><a href="#你是-mcp-server-用户">你是 MCP Server 用户</a></li>
+          <li><a href="#你是-agent-开发者">你是 Agent 开发者</a></li>
+          <li><a href="#你是-mcp-工具的开发者">你是 MCP 工具的开发者</a></li>
+        </ol>
+      </li>
+      <li><a href="#further-reading">扩展阅读</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

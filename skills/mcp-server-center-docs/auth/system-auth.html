@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>系统间授权</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>系统间授权</span>
+</nav>
+
+<h1>系统间授权</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-05-13</div>
+<div class="panel"><strong>该文档仅针对 Aone MCP 网关上的 MCP Server。</strong> zetta 网关的 MCP Server 请移步：<a href="https://alidocs.dingtalk.com/i/nodes/N7dx2rn0JbxOaqnACy3mEoNdWMGjLRb3">HSF / HTTP 接口转 MCP【ZETTA】</a></div>
+
+<div class="panel"><strong>新的系统间/应用级别的授权能力 正在设计中，当前请暂时不要使用本文中的授权方式。</strong></div>
+
+<h2 id="step1">1、MCP Server 负责人在选项中信任调用方身份</h2>
+
+<p><code>mcp.trust-caller-systems=app-1,app-2</code>（支持填写多个 Aone 应用名称，多个名称用英文逗号分割）</p>
+
+<h2 id="step2">2、调用方使用 Normandy Auth SDK 接入</h2>
+
+<p>接入文档：<a href="https://aliyuque.antfin.com/dfotnk/xmctvv/vy4cuv17f63g3p4x">MCP 认证能力 Normandy Auth 解决方案</a></p>
+
+<p>注意，生成 <code>ClientMcpRequestAuth</code> 对象的时候，相关参数填写规则如下：</p>
+<pre><span class="k">val</span> mcpServerUrl = <span class="s">"https://mcp.alibaba-inc.com/code/mcp"</span>
+<span class="k">val</span> mcpRequestAuth: ClientMcpRequestAuth = ClientMcpRequestAuth.of(
+    <span class="c">/* mcpServerUrl */</span> mcpServerUrl, <span class="c">// MCP Server 连接地址，不用带 url 参数</span>
+    <span class="c">/* aiAgentId    */</span> <span class="b">null</span>,         <span class="c">// 固定填写 null</span>
+    <span class="c">/* bucUserId    */</span> <span class="s">"177403"</span>,     <span class="c">// BUC 工号</span>
+)</pre>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#step1">1、MCP Server 负责人在选项中信任调用方身份</a>
+      </li>
+      <li><a href="#step2">2、调用方使用 Normandy Auth SDK 接入</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

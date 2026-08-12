@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>2025-09 MCP 工具调用时启用部门校验</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>2025-09 MCP 工具调用时启用部门校验</span>
+</nav>
+
+<h1>2025-09 MCP 工具调用时启用部门校验</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2025-12-08</div>
+<h2 id="change">变动内容</h2>
+
+<p>从 <strong>2025-09-11 晚（周四晚）</strong> 开始，Aone MCP 网关将开启对 "开放部门" 的强校验。开发者设置 MCP Server 的公开范围后，将决定：</p>
+<ul>
+  <li>哪些用户可以在开放市场上看到这个 Server</li>
+  <li>哪些用户有权限调用该 Server 中的工具</li>
+</ul>
+
+<p>当用户的部门范围不匹配时，会出现 <code>"当前用户不在该 MCP Server 的公开范围内"</code> 的报错提示。</p>
+
+<h2 id="fix">处理方式</h2>
+
+<h3 id="调整部门范围">调整部门范围</h3>
+
+<p>前往 MCP Server 设置，调整 "<strong>公开范围</strong>"：</p>
+
+<p>如果当前选择了 "私有：仅平台关联的部门可见"，则需要在 "平台设置 —— 绑定部门" 页面中进行修改。</p>
+
+<h3 id="单个添加白名单">单个添加白名单</h3>
+
+<p>或是在选项中，通过 <code>mcp.allow-user-list</code> 将指定用户或部门账号的 <strong>工号</strong> 加入白名单：</p>
+
+<h2 id="notes">注意事项</h2>
+
+<ul>
+  <li><strong>修改配置后，不影响当前活跃的 MCP 会话。客户端需要重连一次，新的配置才会生效。</strong></li>
+  <li>"单个添加白名单" 需要在预发和线上环境分别进行配置</li>
+  <li>仍有问题的，请联系 Aone 开放平台管理员</li>
+</ul>
+
+<h3 id="mcp-taobao-net-proxy-调试代理">mcp.taobao.net/proxy/... 调试代理</h3>
+<p>请参考 <a href="../develop/debug-proxy.html">日常环境调试代理</a></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#change">变动内容</a>
+      </li>
+      <li><a href="#fix">处理方式</a>
+        <ol>
+          <li><a href="#调整部门范围">调整部门范围</a></li>
+          <li><a href="#单个添加白名单">单个添加白名单</a></li>
+        </ol>
+      </li>
+      <li><a href="#notes">注意事项</a>
+        <ol>
+          <li><a href="#mcp-taobao-net-proxy-调试代理">mcp.taobao.net/proxy/... 调试代理</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

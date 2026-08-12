@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>HSF / HTTP 接口转 MCP【ZETTA】</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>HSF / HTTP 接口转 MCP【ZETTA】</span>
+</nav>
+
+<h1>HSF / HTTP 接口转 MCP【ZETTA】</h1>
+<div class="meta">作者: 月侠 · 更新: 唯星 · 更新时间: 2026-04-21</div>
+<p>本文介绍如何通过 Aone 开放平台，将已有的 HSF / HTTP 接口转化为 MCP Server</p>
+
+<div class="panel">通过该方式进行接入的 MCP Server 底层使用 <a href="https://aigw-portal.alibaba-inc.com/">zetta 网关</a>，与其他接入类型（底层 Aone 开放平台的 MCP 网关）有一些差异。zetta 网关上的 MCP Server 用法可移步：<a href="https://alidocs.dingtalk.com/i/nodes/gvNG4YZ7Jnxop15OCypkllMXW2LD0oRE">Welcome to ZettaGate</a></div>
+
+<h2 id="register">注册 MCP Server</h2>
+
+<p>前往 <a href="https://open.aone.alibaba-inc.com/">Aone 开放平台</a>，选择右上角的【注册 MCP Server】</p>
+
+<p>接入类型选择【Interface Transform】</p>
+
+<p>选择【单元】如没有特殊需求，选择"中心"即可，默认支持以下两种鉴权方式：</p>
+
+<table>
+  <thead><tr><th>系统间授权</th><th>BUC OAuth（集团内使用）</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>携带可观测和可信身份 Header 在系统间调用（用户可自由选择使用封装好的 SDK 或自行添加相应 Header）</td>
+      <td>内部用户通过 BUC OAuth 身份使用，内部用户使用时，自动弹出 BUC 授权界面</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="add-tools">添加工具</h2>
+
+<p>注册 MCP Server 后，点击【发布】tab，点击添加工具，支持新建工具或添加其它【Interface Transform】类型的 MCP Server 下的工具</p>
+
+<p>选择 HSF / HTTP 后，填写相应的接口信息、安全信息和参数描述，点击下一步完成新建</p>
+
+<p>点击发布预发/发布线上，即可发布到相应的环境</p>
+
+<h2 id="use-mcp">使用 MCP</h2>
+
+<h3 id="添加访问控制">添加访问控制</h3>
+
+<div class="panel small">3.23 开始新创建的 MCP，无需添加访问控制，用户可以直接通过 OAuth 访问</div>
+
+<p>点击访问控制，点击添加使用方，【系统间授权】添加对应的 Aone 应用，【BUC OAuth】添加对应的用户。</p>
+
+<p>添加完成后，即可通过对应的授权方式开始使用。</p>
+
+<h3 id="开始使用">开始使用</h3>
+
+<p><strong>1、获取 MCP 服务地址：</strong></p>
+
+<p><strong>2、使用 MCP 服务</strong></p>
+<ul>
+  <li>系统间授权使用：可参考 <a href="https://alidocs.dingtalk.com/i/nodes/93NwLYZXWyxXroNzCvA0Y6AR8kyEqBQm">MCP Client 接入</a></li>
+  <li>用户授权使用：复制服务地址到对应的 Agent 应用中使用（如 Cursor、Qoder 等），也可以点击【添加到客户端】一键添加。</li>
+</ul>
+
+<h3 id="在开放平台上调试">在开放平台上调试</h3>
+
+<p>【系统间授权】的 MCP 支持在平台上调试/立即使用，其它类型的 MCP 可以前往 <a href="https://mcp.aone.alibaba-inc.com/inspector">Aone MCP Inspector</a> 进行调试。</p>
+
+<h3 id="hsf-http-中如何获取到调用的用户信息">HSF/HTTP 中如何获取到调用的用户信息</h3>
+
+<p>详见：<a href="https://alidocs.dingtalk.com/i/nodes/qnYMoO1rWxrkmoj2IdAn297mJ47Z3je9">参数透传支持来源和去向位置以及参数</a></p>
+
+<div class="panel"><strong>注意</strong>：HSF RpcContext 中只会取 Header Value 中的第一个值！</div>
+
+<p>Zetta 默认会将<strong>上游用户传递</strong>的 <code>x-zetta-</code> 开头的 Header (大小写不敏感) 向下游工具 <a href="https://mw.alibaba-inc.com/hsf/features-usage/rpc-context">HSF RpcContext</a> / HTTP Header 进行透传 (读取时按大小写不敏感读取)，透传后会移除 <code>x-zetta-</code> 前缀。</p>
+
+<p>另外 <strong>Zetta 生成</strong>（与上游用户传递有所区别，以下不需要去掉 <code>x-zetta-</code> 前缀）并透传以下 Header：</p>
+
+<table>
+  <thead><tr><th>字段名</th><th>目标</th><th>Header 名</th><th>含义</th></tr></thead>
+  <tbody>
+    <tr><td class="field">uid</td><td>hsf rpc context / http header</td><td class="field">x-zetta-gateway-uid</td><td>经过 OAuth 等认证的用户 ID</td></tr>
+    <tr><td class="field">uname</td><td>hsf rpc context / http header</td><td class="field">x-zetta-gateway-uname</td><td>经过 OAuth 等认证的用户 Name，仅在部分认证方式下存在</td></tr>
+    <tr><td class="field">unickname</td><td>hsf rpc context / http header</td><td class="field">x-zetta-gateway-unickname</td><td>经过 OAuth 等认证的用户 NickName，仅在部分认证方式下存在</td></tr>
+    <tr><td class="field">agentId</td><td>hsf rpc context / http header</td><td class="field">x-zetta-gateway-agent-id</td><td>目前代表在 NCS Auth 场景下的 agentId</td></tr>
+  </tbody>
+</table>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#register">注册 MCP Server</a>
+      </li>
+      <li><a href="#add-tools">添加工具</a>
+      </li>
+      <li><a href="#use-mcp">使用 MCP</a>
+        <ol>
+          <li><a href="#添加访问控制">添加访问控制</a></li>
+          <li><a href="#开始使用">开始使用</a></li>
+          <li><a href="#在开放平台上调试">在开放平台上调试</a></li>
+          <li><a href="#hsf-http-中如何获取到调用的用户信息">HSF/HTTP 中如何获取到调用的用户信息</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

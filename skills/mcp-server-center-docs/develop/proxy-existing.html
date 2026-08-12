@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>代理已有 MCP Server</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>代理已有 MCP Server</span>
+</nav>
+
+<h1>代理已有 MCP Server</h1>
+<div class="meta">更新: 飞超 · 更新时间: 2026-01-25</div>
+<h2 id="intro">简介</h2>
+
+<p>Aone MCP 网关支持代理已有的 MCP Server。通过该能力，开发者可以将已有的 MCP Server（使用自定义域名）注册到 Aone 开放平台，并将其 "转换" 为 Aone 上的 MCP Server，使得那些已对接 Aone MCP 的 Agent（例如 <a href="https://aone-agent.alibaba-inc.com/">Aone Agent</a>）能够方便地使用 MCP 工具。</p>
+
+<p>通过 Aone MCP 代理后，<strong>外部鉴权</strong>由 Aone MCP 网关负责，我们支持标准的 OAuth2 授权与「基于代码平台 Private Token 的简易鉴权」，具体见<a href="../auth/auth-overview.html">该文档</a>。<strong>内部鉴权</strong>由 MCP 开发者进行配置，一般采用自定义请求头方式，详见本文下方。</p>
+
+<h2 id="access-flow">接入流程</h2>
+
+<p>打开 <a href="https://open.aone.alibaba-inc.com/mcp/register">MCP Server 注册页面</a>，在表单中填入 MCP Server 的基本信息，接入类型选择 <strong>SSE</strong> 或 <strong>Streamable HTTP</strong>，并填写预发地址和正式地址：</p>
+
+<p>表单填写说明：</p>
+<ul>
+  <li>接入类型要根据已有 MCP Server 来决定
+    <ul><li>两种都支持时，建议优先选择 Streamable HTTP</li></ul>
+  </li>
+  <li>预发和正式地址都不能为空
+    <ul><li>如果没有预发地址的话，可以和正式地址填写一样的值</li></ul>
+  </li>
+  <li>Aone MCP 网关内部有控制域名访问的白名单，新增域名需加白后才能使用，否则连接会报错。
+    <ul><li><strong>域名加白请联系本文负责人，联系时请提供 "MCP Server 的详情页链接"</strong></li>
+    <li>详情页链接示例：<a href="https://open.aone.alibaba-inc.com/mcp/server/code">https://open.aone.alibaba-inc.com/mcp/server/code</a></li></ul>
+  </li>
+</ul>
+
+<h2 id="internal-auth">内部鉴权说明</h2>
+
+<p>开发者可通过 <a href="http-headers.html">HTTP 请求头配置</a> 来实现内部鉴权。例如开发者可生成一个 API Key，并将其配置到自定义请求头中：</p>
+
+<pre><span class="k">mcp.headers.X-Api-Key</span>=api-key-for-aone-mcp</pre>
+
+<p>Aone MCP 网关向已有 MCP Server 发起工具调用时，会带上 API Key，以证明请求来自 Aone MCP 网关。网关不限制具体的请求头名称或 key 格式，开发者可自行决定。</p>
+
+<p>此外，开发者也可通过 <code>$ctx.user.empId</code> 在指定请求头中获取当前的 BUC 用户工号：</p>
+
+<pre><span class="k">mcp.headers.Buc-Emp-Id</span>=<span class="s">$ctx.user.empId</span></pre>
+
+<h2 id="options">扩展选项</h2>
+
+<p>代理已有 MCP Server 时，Aone MCP 网关支持以下扩展选项（其他配置详见 <a href="server-options.html">调整 MCP Server 的选项</a>）</p>
+
+<table>
+  <thead><tr><th>选项</th><th>默认值</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td class="field">proxy.base-url</td><td></td><td>自定义 SSE 代理（或 Streamable HTTP 代理）客户端的 baseUrl</td></tr>
+    <tr><td class="field">proxy.initialization-timeout</td><td>120s</td><td>代理客户端的初始化超时时间，默认为 120s</td></tr>
+    <tr><td class="field">proxy.request-timeout</td><td>20s</td><td>代理客户端的请求超时时间，默认为 20s（当你的工具调用耗时较长时，可以适当调整该配置）</td></tr>
+  </tbody>
+</table>
+
+<h2 id="notes">注意事项</h2>
+
+<ul>
+  <li>固定请求头会在每个请求中提供，包括获取初始化、获取工具列表、调用工具；而动态请求头仅在调用工具时才提供。
+    <ul><li>固定请求头含义详见 <a href="http-headers.html">HTTP 请求头配置</a> 文档</li></ul>
+  </li>
+  <li>当用户通过 OAuth2 完成外部鉴权时，headers 中默认会提供 BUC OAuth2 Token
+    <ul>
+      <li>被代理的 MCP Server 可以选择校验该 token，或是开启 <a href="../auth/buc-sso.html">BUC 应用免登</a></li>
+      <li>"BUC OAuth Token" 或 "免登 Ticket" 与动态请求头一样，Aone MCP 网关仅在调用工具时才会提供</li>
+    </ul>
+  </li>
+  <li>敏感配置请使用 "请求头加密功能"，详见 <a href="http-headers.html">HTTP 请求头配置</a></li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#intro">简介</a>
+      </li>
+      <li><a href="#access-flow">接入流程</a>
+      </li>
+      <li><a href="#internal-auth">内部鉴权说明</a>
+      </li>
+      <li><a href="#options">扩展选项</a>
+      </li>
+      <li><a href="#notes">注意事项</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

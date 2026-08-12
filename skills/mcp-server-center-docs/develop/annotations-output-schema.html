@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>Annotations &amp; Output Schema</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <a href="java-handbook.html">Java Aone MCP 研发手册</a>
+  <span class="sep">/</span>
+  <span>Annotations &amp; Output Schema</span>
+</nav>
+
+<h1>Annotations &amp; Output Schema</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<p>我们从 mcp-lite-hsf-server-starter 开始支持 MCP 协议中的 Tool Annotations 和 Output Schema。</p>
+
+<h2 id="annotations">工具注解</h2>
+
+<h3 id="mcp-标准注解">MCP 标准注解</h3>
+
+<p>通过 <code>@Tool.Annotations.readOnlyHint(true)</code> 对工具进行打标，支持 <a href="https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations">MCP 工具的标准注解</a>。</p>
+
+<pre><span class="k">@Component</span>
+<span class="k">class</span> MyMcpServer {
+    <span class="k">@Tool</span>(name = <span class="s">"my_tool"</span>, description = <span class="s">"工具描述、工具描述"</span>)
+    <span class="k">@Tool.Annotations</span>.readOnlyHint(<span class="b">true</span>)
+    <span class="k">@Tool.Annotations</span>.destructiveHint(<span class="b">false</span>)
+    <span class="k">@Tool.Annotations</span>.idempotentHint(<span class="b">true</span>)
+    <span class="k">public</span> String myTool() {
+        <span class="c">// 省略具体实现</span>
+    }
+}</pre>
+
+<div class="panel small">在 mcp-lite-hsf-server-starter 中，所有注解的默认值均为 <strong>null</strong>；当开发者在代码中添加相关注解时，注解的值才会出现在 tool.annotations 对象中。</div>
+
+<h3 id="aone-扩展注解-group">Aone 扩展注解：group</h3>
+
+<pre><span class="k">@Component</span>
+<span class="k">@Tool.Group</span>(<span class="s">"class-level"</span>)
+<span class="k">class</span> MyMcpServer {
+    <span class="k">@Tool</span>(name = <span class="s">"my_tool"</span>, description = <span class="s">"工具描述、工具描述"</span>)
+    <span class="k">@Tool.Group</span>(<span class="s">"method-level"</span>)
+    <span class="k">public</span> String myTool() {
+        <span class="c">// 省略具体实现</span>
+    }
+}</pre>
+
+<p>你可以使用 <code>@Tool.Group</code> 在类或方法上添加分组标签，Aone 开放平台页面中将分组展示工具。</p>
+<ul>
+  <li>方法上的注解优先级高于类上的注解</li>
+  <li><code>@Tool.Group</code> 仅用于优化前端页面展示，不影响工具行为</li>
+</ul>
+
+<h3 id="aone-扩展注解-link">Aone 扩展注解：link</h3>
+
+<div class="panel">该能力当前暂未开放，需 Aone 开放平台侧按 MCP Server 的粒度主动进行开通，如有需求请联系 @史飞超(飞超)。</div>
+
+<p>在 <code>@Tool(...)</code> 注解中，填写 <code>link = "https://mcp.alibaba-inc.com/tools/{server}/{tool}"</code> 格式的链接</p>
+
+<pre><span class="k">@Component</span>
+<span class="k">public class</span> MyMcpServer {
+    <span class="k">@Tool</span>(
+      <span class="c">// 只需要按格式填写 link 参数，不用填写其他参数</span>
+      link = <span class="s">"https://mcp.alibaba-inc.com/tools/{server}/{tool}"</span>
+    )
+    <span class="k">public</span> String myToolCallback(String arg1, String arg2) {
+        <span class="c">// Tool 处理逻辑</span>
+    }
+}</pre>
+
+<p>设置 link 参数后，工具的描述将被托管至 Aone 开放平台，代码中可省略 @Tool 的 name 和 description 参数：</p>
+<ul>
+  <li>name 将从 link 中自动解析</li>
+  <li>description 将维护在 Aone 开放平台上
+    <ul><li>当开放平台中没有对应工具的描述时，代码中的 description 将作为兜底值</li></ul>
+  </li>
+</ul>
+
+<p>此时，开发者在浏览器中打开 <code>https://mcp.alibaba-inc.com/tools/{server}/{tool}</code> 链接，浏览器会自动跳转到工具描述的编辑页面，效果如下：</p>
+
+<p>工具开发者可以直接编辑工具描述，省去代码发布的流程。</p>
+
+<h2 id="output-schema">Output Schema</h2>
+
+<div class="panel">
+我们发现 Output Schema 在实际使用过程中，MCP SDK 对 structured output 校验非常严格，容易导致工具调用失败。<br><br>
+你可以参考下方 "自定义 Output Schema 输出位置"，将 Output Schema 输出到其他位置，避免校验导致工具调用失败。
+</div>
+
+<p>outputSchema 需主动开启，在 application.properties 添加以下配置：</p>
+
+<pre><span class="k">mcp.hsf.server.output-schema</span>=<span class="b">true</span></pre>
+
+<p>注意事项：</p>
+<ul>
+  <li>开启后，mcp-lite-hsf-server-starter 会通过反射获取 @Tool 方法的返回值类型，并生成相应的 JSON Schema 作为 tool.outputSchema</li>
+  <li>按照 MCP 规范，开启 output schema 后，工具调用结果中必须包含 structuredContent 字段，SDK 会将 @Tool 方法返回值作为 structuredContent 内容
+    <ul>
+      <li>延续开源 Java MCP SDK 的行为，Aone 提供的 MCP SDK 也同样使用 Jackson 序列化</li>
+      <li>请确保你的工具方法返回值可以被 Jackson 进行序列化</li>
+    </ul>
+  </li>
+  <li>由于 Java MCP SDK 和 MCP 协议限制，<strong>只有当工具的返回结果类型是 "Object Like" 时，工具才会开启 outputSchema</strong>
+    <ul>
+      <li>一般来说，当工具返回结果类型是 Map 或自定义 POJO 类型时，该工具将开启 outputSchema</li>
+      <li>如果工具返回结果类型是 String、Integer、Boolean 或其他非 Object Like 类型，那么该工具不会开启 outputSchema
+        <ul><li>"Array Like" 的类型（例如数组、列表）目前不会生成 outputSchema</li></ul>
+      </li>
+    </ul>
+  </li>
+  <li>请使用 <code>@JsonPropertyDescription("描述文本")</code> 来添加字段描述
+    <ul><li>Kotlin 中请使用 <code>@get:JsonPropertyDescription("描述文本")</code></li></ul>
+  </li>
+</ul>
+
+<p>设置 outputSchema 后，可以在工具详情中看到 "输出参数"（记得先发布）：</p>
+
+<h3 id="自定义-output-schema-输出位置">自定义 Output Schema 输出位置</h3>
+
+<p>支持指定 Output Schema 的输出位置，<code>mcp.hsf.server.output-schema</code> 可选值如下：</p>
+<ul>
+  <li><code>standard/true</code>：输出到标准字段 tool.outputSchema，同步启用 structuredContent</li>
+  <li><code>description</code>：追加到 tool.description</li>
+  <li><code>annotations</code>：写入一个自定义的工具注解中 <code>tool.annotations["com.alibaba.mcp/outputSchema"]</code></li>
+  <li><code>disabled/false</code>：关闭（默认值）</li>
+</ul>
+
+<p><code>mcp.hsf.server.output-schema=description</code> 效果如下：</p>
+
+<h2 id="kotlin-ref">Kotlin 参考代码</h2>
+
+<pre><span class="k">import</span> com.alibaba.mcp.lite.tool.ToolContextHolder
+<span class="k">import</span> com.alibaba.mcp.lite.tool.annotation.Tool
+<span class="k">import</span> com.fasterxml.jackson.annotation.JsonPropertyDescription
+<span class="k">import</span> org.springframework.stereotype.Component
+
+<span class="k">@Component</span>
+<span class="k">class</span> McpServerExample {
+    <span class="k">@Tool.Group</span>(<span class="s">"default-group"</span>)
+    <span class="k">@Tool</span>(name = <span class="s">"hello"</span>, description = <span class="s">"打个招呼，工具会根据当前用户返回打招呼的信息"</span>)
+    <span class="k">@Tool.Annotations</span>.readOnlyHint(<span class="b">true</span>)
+    <span class="k">@Tool.Annotations</span>.destructiveHint(<span class="b">false</span>)
+    <span class="k">fun</span> hello(): String {
+        <span class="k">val</span> nickName = ToolContextHolder.getToolContext().user.nickName
+        <span class="k">return</span> <span class="s">"你好，$nickName"</span>
+    }
+
+    <span class="k">data class</span> ToolResult(
+        <span class="k">@get:JsonPropertyDescription</span>(<span class="s">"Description of ToolResult.foo"</span>)
+        <span class="k">val</span> foo: String,
+        <span class="k">@get:JsonPropertyDescription</span>(<span class="s">"Description of ToolResult.bar"</span>)
+        <span class="k">val</span> bar: Int,
+    )
+
+    <span class="k">@Tool</span>(link = <span class="s">"https://mcp.alibaba-inc.com/tools/aone-smart-tools/tool_with_dynamic_description"</span>)
+    <span class="k">@Tool.Annotations</span>.readOnlyHint(<span class="b">true</span>)
+    <span class="k">@Tool.Annotations</span>.destructiveHint(<span class="b">false</span>)
+    <span class="k">fun</span> dynamicToolDescription(): ToolResult {
+        <span class="k">return</span> ToolResult(<span class="s">"foo"</span>, <span class="n">1</span>)
+    }
+}</pre>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#annotations">工具注解</a>
+        <ol>
+          <li><a href="#mcp-标准注解">MCP 标准注解</a></li>
+          <li><a href="#aone-扩展注解-group">Aone 扩展注解：group</a></li>
+          <li><a href="#aone-扩展注解-link">Aone 扩展注解：link</a></li>
+        </ol>
+      </li>
+      <li><a href="#output-schema">Output Schema</a>
+        <ol>
+          <li><a href="#自定义-output-schema-输出位置">自定义 Output Schema 输出位置</a></li>
+        </ol>
+      </li>
+      <li><a href="#kotlin-ref">Kotlin 参考代码</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

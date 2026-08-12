@@ -1,0 +1,37 @@
+# This repository is deny-by-default. Only portable Codex configuration is tracked.
+/*
+
+!/.gitignore
+!/README.md
+!/bootstrap.sh
+!/AGENTS.md
+!/agents/
+!/skills/
+
+# Codex-managed system skills are installed by Codex on each machine.
+/skills/.system/
+
+# Skills that can call or operate external systems stay machine-local.
+/skills/ai-coding-trace-troubleshoot/
+/skills/dev-cli/
+/skills/dingtalk-doc-rw/
+/skills/dph-pipeline-operator/
+/skills/generation-qc-rerun/
+/skills/taoab-platform/
+/skills/xdl-inference-performance/
+/skills/yuque-kit/
+
+# Never version generated dependencies, caches, local databases, or likely secrets.
+**/.DS_Store
+**/__pycache__/
+**/*.py[cod]
+**/node_modules/
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+**/*.sqlite
+**/*.sqlite-*
+**/auth.json
+**/credentials.json
+**/config/servers.json

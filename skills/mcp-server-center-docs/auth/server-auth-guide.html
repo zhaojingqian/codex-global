@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>MCP Server 接入指南</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>MCP Server 接入指南</span>
+</nav>
+
+<h1>MCP Server 接入指南</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<h2 id="basics">基础信息</h2>
+
+<p>MCP Provider（即 MCP 工具的提供方）通过接入 Aone MCP 网关，对外提供 MCP Server 能力。接入后，Provider 可以将 MCP Server 上架到 MCP 市场，方便其他用户使用、或被其他系统集成。</p>
+
+<p>Aone 开放平台 MCP 市场：<a href="https://open.aone.alibaba-inc.com/market">https://open.aone.alibaba-inc.com/market</a></p>
+
+<h2 id="requirements">接入要求</h2>
+<ul>
+  <li>对接 MCP 网关时，Provider 需要选择一个已有的 OAuth 授权服务器</li>
+  <li>Provider 需正确消费授权服务器颁发的访问令牌（access_token），进行必要的身份认证和权限验证</li>
+</ul>
+
+<h2 id="auth-server">选择已有的授权服务器</h2>
+
+<p>对于常用的身份类型，Aone 开放平台已提前对接好，MCP Provider 可以在注册时直接选择。</p>
+
+<p>（常规开发者默认只能选择 BUC OAuth2，如需切换请联系系统管理员）</p>
+
+<h3 id="buc-授权服务器">BUC 授权服务器</h3>
+
+<p>当你的系统使用 BUC 作为用户体系，并围绕 BUC 用户进行功能设计和权限验证时，你可以选择 BUC 作为授权服务器。</p>
+
+<h4>授权阶段</h4>
+
+<p>客户端初始化授权流程后，Aone MCP 网关会将授权委托给 <a href="https://ata.atatech.org/articles/11020086421">BUC OAuth</a>，用户在 BUC 系统中进行身份认证后，跳转回客户端回调页面并完成授权，客户端获取 Aone MCP 网关颁发的 access_token（该 token 以 mcpa_ 开头）。</p>
+
+<p>授权阶段由客户端、网关和 BUC 系统共同完成，MCP Provider 一般不用关心。如果感兴趣的话，可以查看<a href="https://alidocs.dingtalk.com/i/nodes/XPwkYGxZV347LdvpH4qOkgK6JAgozOKL">该文档</a>。</p>
+
+<h4>调用阶段</h4>
+
+<p>授权完成后，客户端可以获取网关颁发的 access_token（以 mcpa_ 开头）。客户端在连接 MCP SSE 地址或发起工具调用请求时，会在 Authorization 请求头中带上该 token：</p>
+
+<pre><span class="c">┌──────────────┐      ┌──────────────────┐      ┌─────────────┐      ┌─────┐</span>
+<span class="c">│  MCP 客户端   │      │  Aone MCP 网关    │      │ MCP Provider │      │ BUC │</span>
+<span class="c">└──────┬───────┘      └────────┬─────────┘      └──────┬──────┘      └──┬──┘</span>
+       │                       │                        │                 │
+       │ POST /coop/message    │                        │                 │
+       │ Authorization:        │                        │                 │
+       │   Bearer mcpa_xxx     │                        │                 │
+       │──────────────────────>│                        │                 │
+       │                       │                        │                 │
+       │                       │ 根据 MCP token         │                 │
+       │                       │ 找到绑定的 BUC token    │                 │
+       │                       │                        │                 │
+       │                       │ POST /tools/call       │                 │
+       │                       │ Authorization:         │                 │
+       │                       │   Bearer buc_yyy       │                 │
+       │                       │───────────────────────>│                 │
+       │                       │                        │                 │
+       │                       │                        │ GET /user_info  │
+       │                       │                        │ ?token=buc_yyy  │
+       │                       │                        │────────────────>│
+       │                       │                        │                 │
+       │                       │                        │ BUC User Info   │
+       │                       │                        │<────────────────│
+       │                       │                        │                 │
+       │                       │                        │ 权限验证 &amp;      │
+       │                       │                        │ 业务逻辑        │
+       │                       │                        │                 │
+       │                       │         Response       │                 │
+       │                       │<───────────────────────│                 │
+       │       Response        │                        │                 │
+       │<──────────────────────│                        │                 │</pre>
+
+<p>如上图，网关会带上 BUC Token（buc_yyy）调用 Provider 的接口，Provider 需要用该 token 去查询 BUC，获取相应的 BUC 账号信息后进行权限验证并执行业务逻辑。</p>
+
+<h4>网关在 BUC 授权下的额外行为</h4>
+
+<p>除了上面的标准行为（即网关会带上 BUC Token 调用 Provider 的接口）之外，网关在 Provider 使用 BUC 授权服务器时提供以下额外特性：</p>
+<ul>
+  <li>网关会去 BUC 系统中换取 token 对应的 BUC 账号信息，并在工具调用上下文中添加工号、域账号等信息，Provider 可以读取这些字段，而不用再次查询 BUC 系统。
+    <ul>
+      <li>如何获取这些信息详见：<a href="../develop/java-handbook.html">Java Aone MCP 研发手册</a> 和 <a href="../develop/faas-handbook.html">Aone FaaS MCP 研发手册</a></li>
+    </ul>
+  </li>
+  <li>提供基于 BUC 账号的 token 管理能力
+    <ul><li>已提供，详见 Aone 开放平台 个人页面</li></ul>
+  </li>
+</ul>
+
+<h3 id="语雀-oauth">语雀 OAuth</h3>
+
+<p>使用语雀 OAuth2 进行身份认证，MCP 工具在运行时可获取 语雀 token。用于实现语雀相关的 MCP Server。</p>
+
+<h3 id="其他授权服务器">其他授权服务器</h3>
+
+<p>如果需要使用其他 OAuth 授权服务器，请联系 @史飞超(飞超)。</p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#basics">基础信息</a>
+      </li>
+      <li><a href="#requirements">接入要求</a>
+      </li>
+      <li><a href="#auth-server">选择已有的授权服务器</a>
+        <ol>
+          <li><a href="#buc-授权服务器">BUC 授权服务器</a></li>
+          <li><a href="#语雀-oauth">语雀 OAuth</a></li>
+          <li><a href="#其他授权服务器">其他授权服务器</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

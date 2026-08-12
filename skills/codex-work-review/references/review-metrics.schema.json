@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Codex Work Review Metrics",
+  "type": "object",
+  "required": ["schema_version", "scope", "cadence", "period", "metrics"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "scope": {"type": "string", "minLength": 1},
+    "cadence": {"enum": ["monthly", "weekly"]},
+    "period": {"type": "string", "minLength": 1},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["value", "unit", "direction"],
+        "additionalProperties": false,
+        "properties": {
+          "value": {"type": "number"},
+          "unit": {"type": "string", "minLength": 1},
+          "direction": {"enum": ["higher", "lower", "neutral"]},
+          "definition": {"type": "string"}
+        }
+      }
+    },
+    "unknown_metrics": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

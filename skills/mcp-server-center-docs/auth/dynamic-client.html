@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>动态客户端使用指南</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>动态客户端使用指南</span>
+</nav>
+
+<h1>动态客户端使用指南</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-04-09</div>
+<div class="panel small">
+更多 MCP Server 的使用方式 → <a href="../overview/usage.html">使用 MCP Server</a>
+</div>
+
+<h2 id="intro">介绍</h2>
+
+<p>Aone MCP 网关当前已支持 <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization">2025-06-18 版本 MCP 协议</a> 授权流程。在 Cursor、Claude Code 等客户端中，<strong>直接使用 <code>https://mcp.alibaba-inc.com/code/mcp</code> 这样的地址即可进行连接</strong>，不再需要 secretKey 或其他形式身份凭证。</p>
+
+<p>客户端将在合适时机发起 OAuth2.1 标准授权流程，用户完成授权后可使用该 MCP Server。</p>
+
+<h2 id="scope">适用场景</h2>
+
+<ul>
+  <li>For MCP Server 用户
+    <ul>
+      <li>目前一些常见的编程软件已适配 2025-06-18 版本 MCP OAuth2.1 授权流程，例如 Cursor、Claude Code 等</li>
+      <li>你可以直接在这些软件中进行使用，具体流程见本文下方</li>
+      <li>如果你使用的编程软件不支持该授权，但是支持 Stdio 类型的 MCP Server，你可以通过 mcp-remote 进行接入，详见下方 <a href="#mcp-remote">使用 mcp-remote</a></li>
+    </ul>
+  </li>
+  <li>For MCP Host/Client 开发者（或 Agent 开发者）
+    <ul>
+      <li>如果你正在开发一个 MCP Client（例如一个内部 Agent），并期望对接 Aone MCP 的 OAuth 能力，考虑实现成本与复杂度，我们建议优先对接 <a href="static-client.html">静态客户端注册机制</a>（而不是本文中的动态客户端注册机制）。</li>
+      <li>当然，如果你正在实现一个通用的软件，期望按照统一的形式对接多种不同来源的 MCP Server，则建议基于 2025-06-18 版本 MCP OAuth2.1 来对接 Aone MCP。对接完成之后，请将你的动态客户端注册信息同步给我们，我们会基于该信息进行数据统计和流量分析。</li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="ide-usage">使用常见编程软件</h2>
+
+<p>目前以下软件已支持 2025-06-18 版本 MCP OAuth2.1，下面简单介绍每个软件中的使用方式。</p>
+
+<h3 id="cursor">Cursor</h3>
+
+<p>打开 Cursor Settings，在左侧选择 "MCP"，点击 "New MCP Server" 按钮进入 mcp.json 的编辑器。</p>
+
+<p>在 mcp.json 添加以下配置（如果已有 server，请注意 json 文件的格式）：</p>
+<pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"my-server"</span>: {
+      <span class="k">"url"</span>: <span class="s">"https://mcp.alibaba-inc.com/code/mcp"</span>
+    }
+  }
+}</pre>
+
+<p>当需要进行授权时，Cursor Settings 页面中会展示 "Needs authentication" 文案和 Connect 按钮，点击按钮即可触发授权。</p>
+
+<h3 id="claude-code">Claude Code</h3>
+
+<p>在终端中，执行以下命令添加 MCP Server</p>
+<pre>claude mcp add --transport http code https://mcp.alibaba-inc.com/code/mcp</pre>
+
+<p>然后打开 claude，在 Claude TUI（Terminal User Interface）中输入 <code>/mcp</code>，进入 "Manage MCP servers" 视图。找到刚才添加的 Server，并进行 "Authenticate"。</p>
+
+<h3 id="mcp-inspector">MCP Inspector</h3>
+
+<p>Transport Type 选择 Streamable HTTP，在 URL 中输入 <code>https://mcp.alibaba-inc.com/code/mcp</code>，点击下方的 Connect 按钮即可触发授权流程。</p>
+
+<h2 id="mcp-remote">使用 mcp-remote</h2>
+
+<p>Artlab 地址：<a href="https://artlab.alibaba-inc.com/npm/package/mcp-remote">https://artlab.alibaba-inc.com/npm/package/mcp-remote</a></p>
+
+<p>mcp-remote 是一个 NPM 包，用于将远程 MCP Server 转换为 Stdio 类型，同时添加对 2025-06-18 版本 MCP OAuth2.1 的支持。通过 mcp-remote，你可以在任意支持 Stdio 类型的软件中对接 Aone MCP 的 OAuth2.1。mcp-remote 会通过本地文件缓存访问令牌，有效避免令牌泄露，同时提升授权体验。</p>
+
+<p>你可以使用 npx（推荐用内部 <a href="https://aliyuque.antfin.com/aone/platform/svtmvhgnflg7gerc">tnpx</a> 代替 npx）来运行 mcp-remote，其命令格式为 <code>npx mcp-remote &lt;remote-url&gt;</code>。</p>
+
+<p>使用配置文件时，mcp.json 参考如下：</p>
+<pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"code-server"</span>: {
+      <span class="k">"command"</span>: <span class="s">"npx"</span>,
+      <span class="k">"args"</span>: [
+        <span class="s">"mcp-remote"</span>,
+        <span class="s">"https://mcp.alibaba-inc.com/code/mcp"</span>
+      ]
+    }
+  }
+}</pre>
+
+<h3 id="mcp-remote-遇到问题">mcp-remote 遇到问题？</h3>
+
+<p>mcp-remote 依赖本地安装的 Node.js 和 npm，如遇到无法在浏览器中打开授权页面的问题，可以手动在命令行中执行：</p>
+
+<p><code>npx mcp-remote https://mcp.alibaba-inc.com/code/mcp</code></p>
+
+<p>查看命令是否正常执行。</p>
+
+<h3 id="授权信息缓存目录">授权信息缓存目录</h3>
+
+<p>mcp-remote 会将 token 信息保存在 <code>~/.mcp-auth</code> 目录下，如遇到客户端失效、token 失效等问题，可以删除该目录并重启 MCP Server。</p>
+
+<p>参考命令：<code>rm -r ~/.mcp-auth/</code></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#intro">介绍</a>
+      </li>
+      <li><a href="#scope">适用场景</a>
+      </li>
+      <li><a href="#ide-usage">使用常见编程软件</a>
+        <ol>
+          <li><a href="#cursor">Cursor</a></li>
+          <li><a href="#claude-code">Claude Code</a></li>
+          <li><a href="#mcp-inspector">MCP Inspector</a></li>
+        </ol>
+      </li>
+      <li><a href="#mcp-remote">使用 mcp-remote</a>
+        <ol>
+          <li><a href="#mcp-remote-遇到问题">mcp-remote 遇到问题？</a></li>
+          <li><a href="#授权信息缓存目录">授权信息缓存目录</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

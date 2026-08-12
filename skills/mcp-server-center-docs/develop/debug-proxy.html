@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>日常环境调试代理</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>日常环境调试代理</span>
+</nav>
+
+<h1>日常环境调试代理</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-05-29</div>
+<h2 id="intro">简介</h2>
+
+<p>我们在日常环境提供了 MCP Lite 代理，方便二方开发者在开发 MCP Server 时进行本地调试</p>
+
+<img src="../assets/images/7a63078d-d855-4500-97ea-98df7ed42ecf.png" alt="MCP Lite 代理架构">
+
+<p>代理地址：<code>https://mcp.taobao.net/proxy/{scheme}/{*target}</code></p>
+
+<h3 id="路径变量说明">路径变量说明</h3>
+
+<ul>
+  <li><code>scheme</code>：代理的协议，支持以下取值：<code>http</code>、<code>https</code>、<code>hsf</code>、<code>sse</code></li>
+  <li><code>target</code>：代理目标地址，不同 scheme 下格式有所不同
+    <ul>
+      <li><code>http</code> / <code>https</code>：target 为目标 HTTP 服务地址（host 或 host:port，可带路径）
+        <ul>
+          <li><code>https://mcp.taobao.net/proxy/http/30.166.1.73:7001</code></li>
+          <li><code>https://mcp.taobao.net/proxy/https/test-mcp-server-nodejs.pre-fn.alibaba-inc.com</code></li>
+        </ul>
+      </li>
+      <li><code>hsf</code>：target 为 HSF 服务的<strong>应用名</strong>，由网关在当前环境下解析为实际服务地址
+        <ul><li><code>https://mcp.taobao.net/proxy/hsf/amaven-server</code></li></ul>
+      </li>
+      <li><code>sse</code>：target 为已有的 SSE 类型 MCP Server 端点 URL，网关会作为 MCP Client 连接该端点并把工具转代理出来
+        <ul><li><code>https://mcp.taobao.net/proxy/sse/https://your-mcp-server.alibaba-inc.com/sse</code></li></ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="支持的传输协议">支持的传输协议</h3>
+
+<p>代理同时支持 MCP 的两种传输协议，客户端按标准协议发起请求即可，网关会自动识别：</p>
+
+<ul>
+  <li><strong>SSE</strong>：客户端用 <code>GET</code> 建连，服务端通过 <code>endpoint</code> 事件下发形如 <code>/proxy/message/{sessionKey}</code> 的消息回写地址，后续的 JSON-RPC 消息 <code>POST</code> 到该地址</li>
+  <li><strong>Streamable HTTP</strong>：客户端用 <code>POST</code> 发送 <code>initialize</code> 建连，响应头返回 <code>Mcp-Session-Id</code>；后续每次 <code>POST</code> 消息或 <code>DELETE</code> 终止会话时都需要在请求头里带上该 <code>Mcp-Session-Id</code></li>
+</ul>
+
+<h3 id="身份认证参数说明">身份认证参数说明</h3>
+
+<div class="panel">从 2025 年 8 月 25 日开始，日常调试总是需要添加个人 Token。</div>
+
+<h4>?private_token=xxx</h4>
+
+<p>使用 <code>/proxy/...</code> 代理调试开发时，目标应用默认获取到的是匿名用户的信息。在链接后追加<a href="https://code.alibaba-inc.com/profile/account">个人 Token</a>可切换到个人账号调试，链接格式为：</p>
+
+<p><code>https://mcp.taobao.net/proxy/https/mcp-lite-python-demo.fn.alibaba-inc.com?private_token=xxxxxxxxxxx</code></p>
+
+<h2 id="inspector">使用 MCP Inspector 进行调试</h2>
+
+<p>我们在 <a href="https://mcp.alibaba-inc.com/inspector">https://mcp.alibaba-inc.com/inspector</a> 地址部署了 MCP Inspector，可用于调试 SSE 与 Streamable HTTP 两种类型的 MCP Server。</p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#intro">简介</a>
+        <ol>
+          <li><a href="#路径变量说明">路径变量说明</a></li>
+          <li><a href="#支持的传输协议">支持的传输协议</a></li>
+          <li><a href="#身份认证参数说明">身份认证参数说明</a></li>
+        </ol>
+      </li>
+      <li><a href="#inspector">使用 MCP Inspector 进行调试</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "aoneKit": {
+    "generated": true
+  },
+  "description": "Aone MCP 网关开发者文档（不含 Zetta 网关 / Interface Transform 类型）。当用户询问如何开发 MCP Server、接入 Aone MCP 网关、MCP 身份认证（OAuth、Private Token、BUC SSO）、MCP-Lite HTTP 协议规范、发布流程、调试方法、质量扫描等问题时使用此 skill。即使用户只是提到 \"MCP 开发\"、\"工具注册\"、\"MCP 接入\"、\"MCP 鉴权\" 等关键词也应触发。注意：如果用户提到 \"Interface Transform\"、\"Zetta\"、\"x-zetta-\" Header 等关键词，不应使用此 skill，应引导用户查阅 Zetta 网关文档。",
+  "name": "mcp-server-center-docs",
+  "publishConfig": {
+    "registry": "https://contextlab.alibaba-inc.com/skill"
+  },
+  "version": "0.1.2"
+}

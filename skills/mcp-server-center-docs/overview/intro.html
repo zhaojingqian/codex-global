@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>Aone MCP 介绍</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>Aone MCP 介绍</span>
+</nav>
+
+<h1>Aone MCP 介绍</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-26</div>
+<h2 id="mcp-intro">MCP 协议简介</h2>
+
+<p><a href="https://modelcontextprotocol.io/docs/getting-started/intro">What is the Model Context Protocol (MCP)?</a></p>
+
+<blockquote>
+<p>MCP (Model Context Protocol) is an open-source standard for connecting AI applications to external systems.</p>
+<p>Using MCP, AI applications like Claude or ChatGPT can connect to data sources (e.g. local files, databases), tools (e.g. search engines, calculators) and workflows (e.g. specialized prompts)—enabling them to access key information and perform tasks.</p>
+<p>Think of MCP like a USB-C port for AI applications. Just as USB-C provides a standardized way to connect electronic devices, MCP provides a standardized way to connect AI applications to external systems.</p>
+</blockquote>
+
+<img src="../assets/images/2493cba0-fcd0-40df-9432-77efdab0de7f.png" alt="MCP 协议示意图">
+
+<h2 id="aone-mcp-intro">Aone MCP 介绍</h2>
+
+<p>Aone MCP 是由 <strong>Aone 开放技术</strong> 团队开发和维护的 MCP 服务。Aone MCP 整合了 Aone 内部研发运维平台能力，提供官方 MCP Server（代码平台、项目协作、变更发布、O2 Space），同时也对集团内部用户提供通用的 MCP 网关与市场服务：</p>
+<ul>
+  <li><strong>对于 MCP 工具用户</strong>：提供 MCP 市场和用户鉴权方案，降低 MCP 工具的检索与使用成本</li>
+  <li><strong>对于 MCP 工具开发者</strong>：提供 MCP 研发流程与网关转发服务，方便开发者将已有能力封装为 MCP 工具、并发布到 MCP 市场</li>
+  <li><strong>对于 Agent 与 AI 编程工具</strong>：支持标准 OAuth 接入，赋能 Agent 集成 Aone MCP 市场生态</li>
+</ul>
+
+<img src="../assets/images/aone-mcp-architecture.png" alt="Aone MCP 整体架构图">
+
+<h2 id="use-mcp-server">使用 MCP Server</h2>
+
+<p>Aone MCP 提供标准的 SSE Transport 和 Streamable HTTP Transport 连接地址，用户可以在任意支持 MCP 协议的客户端中进行使用，包括 Cursor、Aone Copilot、Claude Code 等。</p>
+
+<ul>
+  <li>市场地址 <a href="https://open.aone.alibaba-inc.com/market?group=MCP_SERVER">https://open.aone.alibaba-inc.com/market?group=MCP_SERVER</a></li>
+  <li>文档地址 <a href="usage.html">使用 MCP Server</a></li>
+</ul>
+
+<h2 id="develop-mcp-server">开发 MCP Server</h2>
+
+<p>Aone MCP 提供了非常丰富的接入方式，包括 HTTP、HSF、命令行托管、已有 Server 代理等多种方式。</p>
+<p>开发者可以根据业务场景，选取合适方式对接 Aone MCP 网关与市场。</p>
+
+<ul>
+  <li>文档地址 <a href="../develop/overview.html">MCP Server 开发概览</a></li>
+</ul>
+
+<h2 id="agent-access">Agent 接入</h2>
+
+<p>Agent 开发者可以通过标准的 OAuth 流程来接入 Aone MCP 生态，为 Agent 的用户提供丰富的 MCP 能力。</p>
+<p>详见 <a href="../auth/auth-overview.html">MCP 身份认证概览</a></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#mcp-intro">MCP 协议简介</a>
+      </li>
+      <li><a href="#aone-mcp-intro">Aone MCP 介绍</a>
+      </li>
+      <li><a href="#use-mcp-server">使用 MCP Server</a>
+      </li>
+      <li><a href="#develop-mcp-server">开发 MCP Server</a>
+      </li>
+      <li><a href="#agent-access">Agent 接入</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>OAuth 授权扩展</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <a href="static-client.html">静态客户端接入指南</a>
+  <span class="sep">/</span>
+  <span>OAuth 授权扩展</span>
+</nav>
+
+<h1>OAuth 授权扩展</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-03-11</div>
+<p>在 "一次授权一个 MCP Server 的基础上"，Aone MCP 网关提供了以下扩展接口，提供更加灵活授权方式。</p>
+
+<h2 id="batch-auth">批量授权扩展</h2>
+
+<p>通过扩展 scope 参数，支持一次授权申请多个 MCP Server 的权限。</p>
+
+<h3 id="请求-code">请求 Code</h3>
+
+<p>授权链接中的 scope 支持填写多个 MCP Server 的名称，具体格式如下：</p>
+
+<pre><span class="k">GET</span> https://mcp.alibaba-inc.com/oauth/authorize
+  ?response_type=code
+  &amp;client_id=aone-agent-server
+  &amp;state=aaaabbbb-aaaa-bbbb-aaaa-aaaabbbbcccc
+  <span class="s">&amp;batch=true</span>
+  <span class="s">&amp;scope=server:coop server:o2 server:alinpm</span></pre>
+
+<ul>
+  <li><code>batch</code> 参数填写 <code>true</code></li>
+  <li><code>scope</code> 中填写多个 MCP Server 名称，注意前缀和空格分隔符，同时注意实际调用时需对参数进行编码</li>
+</ul>
+
+<p>用户通过该链接完成授权流程后，浏览器会重定向至客户端回调页面。回调页面 URL 会有 <code>batch=true</code> 的查询参数，例如：</p>
+
+<p><code>https://my-agent.alibaba-inc.com/oauth/callback?code=mcpc_xxx&amp;state=aaaabbbb&amp;batch=true</code></p>
+
+<p>客户端使用该 code 参数调用下方的"批量获取 access_token" 接口，可获取到多个 token（每个 token 对应一个 server）。</p>
+
+<h3 id="获取-access_token">获取 access_token</h3>
+
+<p>与标准的获取 access_token 接口类似，<strong>不过批量授权下接口路径为 <code>/oauth/batch_token</code></strong>：</p>
+<pre><span class="k">POST</span> /oauth/batch_token HTTP/1.1
+<span class="k">Host</span>: mcp.alibaba-inc.com
+<span class="k">Content-Type</span>: application/x-www-form-urlencoded
+
+grant_type=authorization_code
+    &amp;code=mcpc_FYh1vYzxk4RSgXX2E3mBVBJujjV9fiaf
+    &amp;client_id=client_id
+    &amp;client_secret=client_secret
+
+<span class="c"># 注意参数放在 POST Body 中</span>
+<span class="c"># 上面的换行仅用于更好地在文档中展示参数，实际传参时不需要换行</span></pre>
+
+<p>默认成功返回示例（结果是一个 Map，每一个分割后的 scope 对应一个 token）：</p>
+<pre>{
+  <span class="k">"server:coop"</span>: {
+    <span class="k">"access_token"</span>: <span class="s">"mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg"</span>,
+    <span class="k">"expires_in"</span>: <span class="n">2592000</span>,
+    <span class="k">"refresh_token"</span>: <span class="s">"mcpr_FbrWyuOZjVYDXpdoKbGB3bnF3eU9qWV2"</span>,
+    <span class="k">"scope"</span>: <span class="s">"server:coop"</span>,
+    <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>
+  },
+  <span class="k">"server:o2"</span>: {
+    <span class="k">"access_token"</span>: <span class="s">"mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg"</span>,
+    <span class="k">"expires_in"</span>: <span class="n">2592000</span>,
+    <span class="k">"refresh_token"</span>: <span class="s">"mcpr_FbrWyuOZjVYDXpdoKbGB3bnF3eU9qWV2"</span>,
+    <span class="k">"scope"</span>: <span class="s">"server:o2"</span>,
+    <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>
+  },
+  <span class="k">"server:alinpm"</span>: {
+    <span class="k">"access_token"</span>: <span class="s">"mcpa_LqjxkR0XjCZr8sjWlb2ydEOQ6MSGZfCg"</span>,
+    <span class="k">"expires_in"</span>: <span class="n">2592000</span>,
+    <span class="k">"refresh_token"</span>: <span class="s">"mcpr_FbrWyuOZjVYDXpdoKbGB3bnF3eU9qWV2"</span>,
+    <span class="k">"scope"</span>: <span class="s">"server:alinpm"</span>,
+    <span class="k">"token_type"</span>: <span class="s">"Bearer"</span>
+  }
+}</pre>
+
+<h3 id="其他实现细节">其他实现细节</h3>
+
+<p>在批量授权的场景下，网关会基于一个 BUC Token（inner token）颁发多个 MCP Token，网关内部会负责维护两者之间的绑定关系。</p>
+
+<h2 id="universal-auth">通用授权扩展</h2>
+
+<p>一次授权可获取一个 "能够连接所有 MCP Server" 的令牌。采用通用授权时，客户端只需要为每个用户维护一个 token 即可。</p>
+
+<h3 id="请求-code-76e9">请求 Code</h3>
+
+<p>授权链接中的 scope 填写 <code>all_servers</code>，例如：</p>
+
+<pre><span class="k">GET</span> https://mcp.alibaba-inc.com/oauth/authorize
+  ?response_type=code
+  &amp;client_id=aone-agent-server
+  &amp;state=aaaabbbb-aaaa-bbbb-aaaa-aaaabbbbcccc
+  <span class="s">&amp;scope=all_servers</span></pre>
+
+<p>其余流程与标准 OAuth 授权相同。授权完成后，客户端可以通过获取到的 token 连接 Aone 开放平台上任意 MCP Server。</p>
+
+<p>注意事项：</p>
+<ul>
+  <li>在 2025年10月之前，我们有提供 scope 为 <code>all_buc_based_servers</code> 的用法
+    <ul>
+      <li>使用该 scope 生成的 token 只能用于连接 "那些使用 BUC OAuth 的 MCP Server"</li>
+      <li>如果你正在使用 <code>all_buc_based_servers</code>，你可以将它替换为 <code>all_servers</code></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="batch-refresh">批量刷新令牌</h2>
+
+<p>批量刷新令牌接口已于 2025-10-11 已下线。</p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#batch-auth">批量授权扩展</a>
+        <ol>
+          <li><a href="#请求-code">请求 Code</a></li>
+          <li><a href="#获取-access_token">获取 access_token</a></li>
+          <li><a href="#其他实现细节">其他实现细节</a></li>
+        </ol>
+      </li>
+      <li><a href="#universal-auth">通用授权扩展</a>
+        <ol>
+          <li><a href="#请求-code-76e9">请求 Code</a></li>
+        </ol>
+      </li>
+      <li><a href="#batch-refresh">批量刷新令牌</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>网关默认下发请求头</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>网关默认下发请求头</span>
+</nav>
+
+<h1>网关默认下发请求头</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-05-21</div>
+
+<p>工具提供方从下面 3 个保留请求头中获取本次工具调用的来源信息。三个头<strong>由网关基于已通过鉴权的身份注入</strong>，客户端或服务端 headers 配置均无法伪造。</p>
+
+<table>
+  <thead><tr>
+    <th>Header</th>
+    <th>来源</th>
+    <th>示例</th>
+    <th>何时缺失</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td class="field">Mcp-Caller-System</td>
+      <td>调用方系统名（来自 Normandy AuthSdk 携带的可信系统身份）</td>
+      <td><code>aone-open-platform</code>、<code>starops-agents</code>、<code>amap-llm-biz-app-gateway</code></td>
+      <td>不经 Normandy 接入时缺失</td>
+    </tr>
+    <tr>
+      <td class="field">Mcp-Agent-Id</td>
+      <td>Agent 唯一 ID</td>
+      <td><code>agent-wukong</code>、<code>agent-qoderwork</code></td>
+      <td>调用方不是 Agent 时缺失</td>
+    </tr>
+    <tr>
+      <td class="field">Mcp-Client-Name</td>
+      <td>调用方客户端可读名称</td>
+      <td><code>mcp-host:claude-code</code>、<code>mcp-host:unknown</code>、<code>aone-open-agent</code></td>
+      <td>无客户端信息时缺失</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>三个 header 可同时出现（如 Agent 通过 OAuth Client 调用、来自某 Aone 系统的 Agent 调用等）。</p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#">网关默认下发请求头</a></li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

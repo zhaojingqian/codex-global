@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>查看工具调用链路与节点数据</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>查看工具调用链路与节点数据</span>
+</nav>
+
+<h1>查看工具调用链路与节点数据</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<h2 id="intro">简介</h2>
+
+<p>Aone MCP 网关当前已通过 OpenTelemetry 接入 EagleEye/Sunfire（<a href="https://ata.atatech.org/articles/11020481645">相关介绍</a>），你可以通过鹰眼来查看 MCP 工具的调用链路与节点数据。</p>
+
+<div class="panel small">目前 Aone MCP 网关接入鹰眼存在一些已知限制，请阅读下方的「注意事项」。</div>
+
+<h2 id="guide">操作指南</h2>
+
+<h4>获取 MCP 工具调用的 EagleEye-TraceId</h4>
+
+<p>以 <a href="https://mcp.alibaba-inc.com/inspector#tools">MCP Inspector</a> 为例，你可以通过 Chrome DevTools 的 Network Panel 查看工具调用对应的 HTTP 请求，并在 Response Headers 中获取 TraceId。</p>
+
+<img src="../assets/images/0daea734-a914-445f-ba3a-c47223fae56e.png" alt="获取 TraceId">
+
+<h4>在鹰眼中查询 TraceId</h4>
+
+<p>在鹰眼中使用 TraceId 进行查询，查看 mcp-server-center 或 tools/call 的 Span 详情。</p>
+
+<img src="../assets/images/7397640b-852b-4ff2-8dfe-dab0ca207070.png" alt="鹰眼查询 TraceId">
+
+<h2 id="debug-mode">debug 模式</h2>
+
+<p>你可以通过 MCP Server 链接上的查询参数来开启 debug 模式，debug 模式下 Aone MCP 网关会在 Trace 数据中记录完整的请求出入参。</p>
+
+<p>鹰眼中的展示效果：</p>
+
+<img src="../assets/images/1e61c403-33e1-4af3-b7a4-11ff82aefacf.png" alt="debug 模式鹰眼展示">
+
+<h2 id="notes">注意事项</h2>
+
+<ul>
+  <li>当前鹰眼正式环境对 OTel Span 的展示效果较差，你可以尝试切换到<a href="https://pre-eagleeye2.alibaba-inc.com/">鹰眼预发环境</a></li>
+  <li>当前 OTel 数据仅支持 "HTTP"、"Aone MCP Java SDK" 与 "OpenAPI Transform" 接入类型，debug 模式下支持查看完整出入参
+    <ul><li>其他接入类型仅做基础打点，不支持查看详细信息</li></ul>
+  </li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#intro">简介</a>
+      </li>
+      <li><a href="#guide">操作指南</a>
+      </li>
+      <li><a href="#debug-mode">debug 模式</a>
+      </li>
+      <li><a href="#notes">注意事项</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

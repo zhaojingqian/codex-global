@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>调整 MCP Server 的选项</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>调整 MCP Server 的选项</span>
+</nav>
+
+<h1>调整 MCP Server 的选项</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<p>完成 MCP Server 注册后，你可以按照本文修改 MCP Server 设置，例如调整工具调用超时时间、或是附加自定义的 HTTP 请求头。</p>
+
+<h2 id="path">操作路径</h2>
+
+<p>MCP Server 详情页 → 设置 → 选项</p>
+
+<h3 id="注意事项">注意事项</h3>
+<ul>
+  <li>选项分为预发和线上环境，不同环境需单独配置</li>
+  <li>选项采用 properties 文件格式，编辑前请对该格式有一定了解</li>
+</ul>
+
+<pre><span class="c"># 建议统一使用 kebab-case</span>
+<span class="k">mcp.max-body-size</span>=<span class="s">4MB</span>
+
+<span class="c"># 不推荐使用 camelCase（虽然 Spring 解析 properties 文件时也支持）</span>
+<span class="k">mcp.maxBodySize</span>=<span class="s">4MB</span>
+
+<span class="c"># 不建议行首包含空格</span>
+   <span class="k">mcp.max-body-size</span>=<span class="s">4MB</span></pre>
+
+<h2 id="config-list">配置一览</h2>
+
+<div class="panel small">当前文档仅列出常用的选项，完整列表请在开放平台中点击 "查看选项列表" 按钮</div>
+
+<h3 id="mcp-max-body-size">mcp.max-body-size</h3>
+<p>单次工具调用返回结果的最大体积，默认为 4MB。</p>
+
+<h3 id="mcp-tool-call-timeout">mcp.tool-call-timeout</h3>
+<ul>
+  <li>单次工具调用的超时时间。</li>
+  <li>该选项留空表示使用 "MCP 网关内置超时时间" 的默认值，默认为 60s。</li>
+  <li>可修改为自定义时间，例如 90s 或 10m，最大可设置为 1h。</li>
+</ul>
+
+<h3 id="mcp-headers">mcp.headers</h3>
+<p>默认情况下，网关通过 HTTP/HSF 调用 MCP Tool Provider 时，仅传递部分必要的请求头，例如 EagleEye-TraceId、Authorization。为了方便开发者根据业务需求灵活传递请求头，网关支持通过 mcp.headers 配置自定义请求头。</p>
+<p>详见 <a href="gateway-default-headers.html">网关默认下发请求头</a></p>
+
+<h3 id="mcp-allow-user-list">mcp.allow-user-list</h3>
+<p>指定允许使用该 MCP Server 的 BUC 用户列表。添加用户工号后，即使用户不在当前 MCP Server 开放范围内，该用户也依旧可以调用该 MCP Server 中的工具。</p>
+<p>多个用户工号使用英文逗号分隔，例如：</p>
+<pre><span class="k">mcp.allow-user-list</span>=<span class="s">177403,WORKER_1735026162968,287523</span></pre>
+
+<h3 id="hsf-app-group">hsf.app-group</h3>
+<p>指定 HSF Service 对应的 Aone 应用分组。详见 <a href="hsf-multi-env.html">HSF 多套环境适配方案</a></p>
+
+<h3 id="hsf-route">hsf.route</h3>
+<p>自定义 HSF 路由规则，允许开发者动态指定应用分组，同时支持 HSF 跨单元调用。详见 <a href="hsf-multi-env.html">HSF 多套环境适配方案</a></p>
+
+<h3 id="mcp-buc-sso-ticket">mcp.buc-sso-ticket</h3>
+<p>BUC 免登配置，详见 <a href="../auth/buc-sso.html">BUC 应用免登</a></p>
+
+<h3 id="mcp-trust-caller-systems">mcp.trust-caller-systems</h3>
+<p>信任的调用来源系统列表，详见 <a href="../auth/system-auth.html">系统间授权</a></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#path">操作路径</a>
+        <ol>
+          <li><a href="#注意事项">注意事项</a></li>
+        </ol>
+      </li>
+      <li><a href="#config-list">配置一览</a>
+        <ol>
+          <li><a href="#mcp-max-body-size">mcp.max-body-size</a></li>
+          <li><a href="#mcp-tool-call-timeout">mcp.tool-call-timeout</a></li>
+          <li><a href="#mcp-headers">mcp.headers</a></li>
+          <li><a href="#mcp-allow-user-list">mcp.allow-user-list</a></li>
+          <li><a href="#hsf-app-group">hsf.app-group</a></li>
+          <li><a href="#hsf-route">hsf.route</a></li>
+          <li><a href="#mcp-buc-sso-ticket">mcp.buc-sso-ticket</a></li>
+          <li><a href="#mcp-trust-caller-systems">mcp.trust-caller-systems</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

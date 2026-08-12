@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>2025-08 MCP Server 域名校验</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>2025-08 MCP Server 域名校验</span>
+</nav>
+
+<h1>2025-08 MCP Server 域名校验</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-03-20</div>
+<h2 id="change">变动内容</h2>
+
+<p>从 2025-08 开始，MCP 网关将逐步添加对 MCP Server 的域名校验，避免<a href="https://aliyuque.antfin.com/alccih/principle/ssrf_principle">服务端 SSRF 攻击</a>，新接入的 MCP Server 可能会遇到以下报错：</p>
+
+<p><strong>"MCP Server 对应域名（xxx.alibaba-inc.com）不在白名单内，请联系 Aone 开放平台管理员"</strong></p>
+
+<p>或</p>
+
+<p><strong>"SSE 地址指向的 xxx 域名不在白名单内，请联系 Aone 开放平台管理员"</strong></p>
+
+<h2 id="fix">处理方式</h2>
+
+<p>请直接联系 @史飞超(飞超)，将 <strong>MCP Server 详情页面地址</strong> 发给他加白处理。</p>
+
+<p>注意：</p>
+<ul>
+  <li>线上环境不接受加白 预发域名（更不接受日常域名）</li>
+  <li>请确认你有的域名的所有权/使用权
+    <ul><li>例如：你是域名归属应用的 owner 或 AppOps</li></ul>
+  </li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#change">变动内容</a>
+      </li>
+      <li><a href="#fix">处理方式</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

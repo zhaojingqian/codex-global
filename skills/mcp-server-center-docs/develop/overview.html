@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>MCP Server 开发概览</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>MCP Server 开发概览</span>
+</nav>
+
+<h1>MCP Server 开发概览</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-01-25</div>
+<img src="../assets/images/04bfecc2-7cdd-4260-9a3c-c059df0a0150.png" alt="MCP Server 开发概览架构图">
+
+<h2 id="access-methods">接入方式选择</h2>
+
+<p>Aone MCP 提供了非常丰富的接入方式，请根据你的技术栈与业务场景，选择合适的开放方式：</p>
+
+<ul>
+  <li>HTTP 接入（通过 Aone FaaS 接入）：
+    <ul>
+      <li>新建 Node.js FaaS 应用（或已有 Node.js 应用）：<a href="faas-handbook.html">Aone FaaS MCP 研发手册</a></li>
+      <li>新建 Python FaaS 应用（或已有 Python 应用）：<a href="python-handbook.html">Python Aone MCP 研发手册</a></li>
+    </ul>
+  </li>
+  <li>Aone MCP Java SDK 接入：
+    <ul>
+      <li>Java 应用：<a href="java-handbook.html">Java Aone MCP 研发手册</a></li>
+    </ul>
+  </li>
+  <li>非源码接入：
+    <ul>
+      <li>已有 Open API 接入（不限语言，需提供 OAS/Swagger 文档）：<a href="openapi-transform.html">OpenAPI 转为 MCP</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="proxy-hosting">代理或托管已有 MCP Server</h2>
+
+<p>此外，我们也支持代理或托管已有的 MCP Server，请根据已有的 MCP Server 类型选择适合的方案：</p>
+
+<ul>
+  <li><a href="proxy-existing.html">代理已有 MCP Server</a></li>
+  <li><a href="sandbox-command.html">在沙箱中运行 command</a></li>
+  <li><a href="compose-tools.html">编排工具集</a> — 基于 Aone 开放市场中已有的工具，组合成新的 MCP Server</li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#access-methods">接入方式选择</a>
+      </li>
+      <li><a href="#proxy-hosting">代理或托管已有 MCP Server</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

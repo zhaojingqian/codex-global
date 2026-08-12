@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>Java Aone MCP 研发手册</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <span>Java Aone MCP 研发手册</span>
+</nav>
+
+<h1>Java Aone MCP 研发手册</h1>
+<div class="meta">作者: 飞超 · 更新: 簪星 · 更新时间: 2026-05-13</div>
+<h2 id="starter-intro">mcp-lite-hsf-server-starter</h2>
+
+<h3 id="特性">特性</h3>
+<ul>
+  <li>参考 Spring AI 中 MCP Server Boot Starter 的设计，通过 <code>@Tool</code> 快速将已有方法转换为 MCP 工具</li>
+  <li>兼容 Java 8，适配 Spring Boot 2 / 3</li>
+  <li>应用启动时自动发布为 HSF 服务，无缝对接 Aone MCP</li>
+</ul>
+
+<h3 id="限制">限制</h3>
+<ul>
+  <li>目前仅支持 tool 能力，暂不支持 prompts/resources 等其他 MCP 能力</li>
+</ul>
+
+<h2 id="import-starter">引入 starter</h2>
+
+<p>引入 starter，建议使用最新版本。版本更新记录详见 <a href="java-sdk-changelog.html">版本更新记录</a></p>
+
+<pre>&lt;<span class="k">dependency</span>&gt;
+  &lt;<span class="k">groupId</span>&gt;com.alibaba.mcp&lt;/<span class="k">groupId</span>&gt;
+  &lt;<span class="k">artifactId</span>&gt;mcp-lite-hsf-server-starter&lt;/<span class="k">artifactId</span>&gt;
+  &lt;<span class="k">version</span>&gt;<span class="s">1.2.2</span>&lt;/<span class="k">version</span>&gt;
+&lt;/<span class="k">dependency</span>&gt;</pre>
+
+<p>对于 kotlin 项目，需要额外引入 jackson-kotlin-module</p>
+
+<pre>&lt;<span class="k">dependency</span>&gt;
+  &lt;<span class="k">groupId</span>&gt;com.fasterxml.jackson.module&lt;/<span class="k">groupId</span>&gt;
+  &lt;<span class="k">artifactId</span>&gt;jackson-module-kotlin&lt;/<span class="k">artifactId</span>&gt;
+  &lt;<span class="k">version</span>&gt;<span class="s">${jacksonVersion}</span>&lt;/<span class="k">version</span>&gt;
+&lt;/<span class="k">dependency</span>&gt;</pre>
+
+<p>如果项目中的 jackson 版本较低，可以在项目的 parent pom.xml 中指定 jackson 版本。jackson 版本需要大于等于 <code>2.17.2</code></p>
+
+<pre>&lt;<span class="k">dependencyManagement</span>&gt;
+  &lt;<span class="k">dependency</span>&gt;
+    &lt;<span class="k">groupId</span>&gt;com.fasterxml.jackson&lt;/<span class="k">groupId</span>&gt;
+    &lt;<span class="k">artifactId</span>&gt;jackson-bom&lt;/<span class="k">artifactId</span>&gt;
+    &lt;<span class="k">version</span>&gt;<span class="s">${jacksonVersion}</span>&lt;/<span class="k">version</span>&gt;
+    &lt;<span class="k">type</span>&gt;pom&lt;/<span class="k">type</span>&gt;
+    &lt;<span class="k">scope</span>&gt;import&lt;/<span class="k">scope</span>&gt;
+  &lt;/<span class="k">dependency</span>&gt;
+&lt;/<span class="k">dependencyManagement</span>&gt;</pre>
+
+<h2 id="config-properties">配置 application.properties</h2>
+
+<pre><span class="c"># starter 会默认注册项目同名的 server 服务</span>
+<span class="k">project.name</span>=your-project-name
+
+<span class="c"># 配置 server 端的 timeout，默认 10000ms（1.3.0 起从 3000ms 调整为 10000ms）</span>
+<span class="k">mcp.hsf.server.timeout</span>=<span class="n">10000</span>
+
+<span class="c"># 是否启动 server，默认开启</span>
+<span class="k">mcp.hsf.server.enable</span>=<span class="b">true</span></pre>
+
+<div class="panel small">完整的配置项列表，详见 <code>com.alibaba.mcp.lite.boot.server.McpHsfProperties</code> 的具体实现，IDEA 中会有自动提示</div>
+
+<h2 id="compiler-plugin">编译插件配置</h2>
+
+<p>配置编译插件，在编译时保留方法的参数元数据信息，帮助大模型更好的理解工具信息</p>
+
+<pre><span class="c">&lt;!-- java 构建插件配置--&gt;</span>
+&lt;<span class="k">plugin</span>&gt;
+  &lt;<span class="k">groupId</span>&gt;org.apache.maven.plugins&lt;/<span class="k">groupId</span>&gt;
+  &lt;<span class="k">artifactId</span>&gt;maven-compiler-plugin&lt;/<span class="k">artifactId</span>&gt;
+  &lt;<span class="k">configuration</span>&gt;
+    <span class="c">&lt;!-- 增加 compile 参数 --&gt;</span>
+    &lt;<span class="k">compilerArgument</span>&gt;-parameters&lt;/<span class="k">compilerArgument</span>&gt;
+
+    <span class="c">&lt;!-- 如果插件版本 &gt;= 3.6.2，可使用以下配置 --&gt;</span>
+    &lt;<span class="k">parameters</span>&gt;<span class="b">true</span>&lt;/<span class="k">parameters</span>&gt;
+  &lt;/<span class="k">configuration</span>&gt;
+&lt;/<span class="k">plugin</span>&gt;</pre>
+
+<pre><span class="c">&lt;!-- kotlin 编译插件配置 --&gt;</span>
+&lt;<span class="k">plugin</span>&gt;
+  &lt;<span class="k">groupId</span>&gt;org.jetbrains.kotlin&lt;/<span class="k">groupId</span>&gt;
+  &lt;<span class="k">artifactId</span>&gt;kotlin-maven-plugin&lt;/<span class="k">artifactId</span>&gt;
+  &lt;<span class="k">configuration</span>&gt;
+    <span class="c">&lt;!-- 添加配置 --&gt;</span>
+    &lt;<span class="k">javaParameters</span>&gt;<span class="b">true</span>&lt;/<span class="k">javaParameters</span>&gt;
+  &lt;/<span class="k">configuration</span>&gt;
+&lt;/<span class="k">plugin</span>&gt;</pre>
+
+<h2 id="develop-tool">开发 tool</h2>
+
+<p>任意组件类 (@Controller/@Service/@Component/@Configuration…) 中的任意方法加上 <code>@Tool</code> 注释，即可完成工具的注册。</p>
+
+<h3 id="java-代码示例">Java 代码示例</h3>
+
+<pre><span class="k">import</span> com.alibaba.mcp.lite.tool.annotation.Tool;
+<span class="k">import</span> com.alibaba.mcp.lite.tool.annotation.ToolParam;
+<span class="k">import</span> com.fasterxml.jackson.annotation.JsonPropertyDescription;
+<span class="k">import</span> org.springframework.stereotype.Component;
+
+<span class="k">@Component</span>
+<span class="k">public class</span> McpServerDemo {
+    <span class="k">@Tool.Group</span>(<span class="s">"生活服务"</span>)
+    <span class="k">@Tool</span>(name = <span class="s">"get_weather"</span>, description = <span class="s">"获取城市的天气预报"</span>)
+    <span class="k">@Tool.Annotations</span>.readOnlyHint(<span class="b">true</span>)
+    <span class="k">@Tool.Annotations</span>.openWorldHint(<span class="b">true</span>)
+    <span class="k">public</span> WeatherDetail getWeather(
+        <span class="k">@ToolParam</span>(description = <span class="s">"城市名称，例如杭州"</span>)
+        String city,
+        <span class="k">@ToolParam</span>(description = <span class="s">"天气预报日期，例如 2025-09-28，默认为明天"</span>, required = <span class="b">false</span>)
+        String date
+    ) {
+        <span class="c">// 从 ToolContextHolder 获取当前 MCP 请求上下文，例如当前 BUC 用户或 headers</span>
+        String loginName = ToolContextHolder.getToolContext().getUser().getLoginName();
+        logger.info(<span class="s">"{} query weather of {}"</span>, loginName, city)
+
+        <span class="c">// 根据 city 和 date 调用天气预报接口</span>
+        <span class="c">// 这里省略具体实现</span>
+        <span class="k">return new</span> WeatherDetail();
+    }
+}
+
+<span class="c">// file: WeatherDetail.java</span>
+<span class="c">// 定义工具返回结果类型，可使用 @JsonPropertyDescription 提供字段描述</span>
+<span class="k">@Data</span>
+<span class="k">class</span> WeatherDetail {
+    <span class="k">@JsonPropertyDescription</span>(<span class="s">"城市"</span>) <span class="k">private</span> String city;
+    <span class="k">@JsonPropertyDescription</span>(<span class="s">"日期"</span>) <span class="k">private</span> String date;
+    <span class="k">@JsonPropertyDescription</span>(<span class="s">"温度"</span>) <span class="k">private</span> String temperature;
+    <span class="k">@JsonPropertyDescription</span>(<span class="s">"湿度"</span>) <span class="k">private</span> String humidity;
+    <span class="k">@JsonPropertyDescription</span>(<span class="s">"天气状况"</span>) <span class="k">private</span> String weatherCondition;
+    <span class="k">@JsonPropertyDescription</span>(<span class="s">"数据更新时间"</span>) <span class="k">private</span> LocalDateTime updateTime;
+}</pre>
+
+<h3 id="注解介绍">注解介绍</h3>
+
+<h4>@Tool</h4>
+
+<p>@Tool 可以将一个 Java 方法转换为一个 MCP 工具，是目前定义工具的唯一方式。</p>
+<ul>
+  <li>注解参数
+    <ul>
+      <li><code>name</code>：<strong>工具名称，选填</strong>。默认使用 Java 方法名称作为工具名称，也可以改为其他任意名称
+        <ul><li>工具名称：建议工具名称仅包含数字、英文字母、和 - _ 符号，避免包含空格或其他特殊字符</li></ul>
+      </li>
+      <li><code>description</code>：<strong>工具描述，选填</strong>。为了让大模型更好的理解和使用工具，建议添加详细的工具描述
+        <ul><li>1.0.8 以前 description 字段必填，从 1.0.8 后改为选填</li></ul>
+      </li>
+      <li><code>link</code>：<strong>工具在线链接，选填。</strong>未开放能力，请勿使用</li>
+    </ul>
+  </li>
+  <li>工具的入参和返回值
+    <ul>
+      <li>入参支持 <code>@ToolParam</code> 注解，用于添加参数描述和是否必填字段</li>
+      <li>工具的入参和返回值采用 jackson 进行序列化和反序列化
+        <ul>
+          <li>自定义类型请注意遵循相关约定，提供相关字段的 getter/setter 以及无参构造器</li>
+          <li>自定义的 POJO（例如上面例子中的 <code>WeatherDetail</code>）请使用 jackson 提供的注解来添加字段信息
+            <ul>
+              <li>例如使用 <code>@JsonPropertyDescription("描述文本")</code> 来添加字段描述，来帮助大模型更好地理解参数的作用</li>
+              <li>在 Kotlin 中，请使用 <code>@get:JsonPropertyDescription("描述文本")</code></li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>调用是否成功：
+    <ul>
+      <li>当方法正常结束并返回时，表示工具调用成功</li>
+      <li>若工具方法抛出任意异常，则表示调用失败，异常的 message 将被作为工具调用出错信息
+        <ul><li>MCP 工具调用结果中的 isError 字段将被设置为 true</li></ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<h4>@ToolParam</h4>
+<ul>
+  <li><code>required</code>：是否为必填参数，默认为 true，表示当前参数不能为空</li>
+  <li><code>description</code>：参数描述，默认为空</li>
+</ul>
+
+<h4>@Tool.Group</h4>
+<p>指定工具分组。详见 <a href="annotations-output-schema.html">Annotations &amp; Output Schema</a></p>
+
+<h4>@Tool.Annotations</h4>
+<p>为 MCP 工具添加注解，支持 MCP 协议中的 <a href="https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations">标准注解</a>。</p>
+<p>详见 <a href="annotations-output-schema.html">Annotations &amp; Output Schema</a></p>
+
+<h3 id="调用工具上下文">调用工具上下文</h3>
+
+<p>通过 <code>ToolContextHolder.getToolContext()</code> 可以获得当前 MCP 请求的上下文，上下文中包含 sessionKey（MCP 会话标识）、user（当前用户信息）、headers、queryParams 等字段。</p>
+
+<pre><span class="k">import</span> com.alibaba.mcp.lite.spec.LiteMcpSchema;
+<span class="k">import</span> com.alibaba.mcp.lite.tool.ToolContext;
+<span class="k">import</span> com.alibaba.mcp.lite.tool.ToolContextHolder;
+<span class="k">import</span> com.alibaba.mcp.lite.tool.annotation.Tool;
+<span class="k">import</span> org.springframework.stereotype.Component;
+
+<span class="k">import</span> java.util.Map;
+
+<span class="k">@Component</span>
+<span class="k">public class</span> McpServerDemo {
+    <span class="k">@Tool</span>(name = <span class="s">"hello"</span>, description = <span class="s">"打个招呼"</span>)
+    <span class="k">public</span> String hello() {
+        ToolContext context = ToolContextHolder.getToolContext();
+        LiteMcpSchema.User user = context.getUser();
+
+        String nickName = user.getNickName(); <span class="c">// 用户的花名或真名</span>
+        String empId = user.getEmpId(); <span class="c">// 用户工号（注意工号前面没有 0）</span>
+        String loginName = user.getLoginName(); <span class="c">// BUC 域账号</span>
+
+        Map&lt;String, String&gt; headers = context.getHeaders();
+        Map&lt;String, String&gt; queryParams = context.getQueryParams();
+
+        <span class="k">return</span> <span class="s">"你好，"</span> + nickName + <span class="s">"("</span> + empId + <span class="s">")"</span>;
+    }
+}</pre>
+
+<h2 id="debug">调试</h2>
+
+<p>本地/日常环境 应用启动之后，starter 会自动发布 HSF 服务，你可以通过 <code>https://mcp.taobao.net/proxy/hsf/{project.name}</code> 这个 SSE 连接地址进行调试。你可以把这个地址放到 <a href="https://mcp.alibaba-inc.com/inspector">MCP Inspector</a> 中，也可以复制到任意 MCP 客户端（例如 Cursor）中进行体验。</p>
+
+<div class="panel">
+注意：调试开发时，你需要在链接后面加上<a href="https://code.alibaba-inc.com/profile/account">个人 Token</a>，所以完整的链接格式为：<br><br>
+<code>https://mcp.taobao.net/proxy/hsf/&lt;project.name&gt;?private_token=xxxx</code>
+</div>
+
+<p>关于 proxy 的更多信息详见：<a href="debug-proxy.html">日常环境调试代理</a></p>
+
+<h3 id="预发调试">预发调试</h3>
+
+<p>你需要先将服务注册到 Aone MCP 市场，然后通过 <a href="https://pre-open.aone.alibaba-inc.com/mcp?category=test">Aone 开放平台</a> 生成预发链接进行调试。</p>
+
+<h2 id="register-publish">注册、发布与上架</h2>
+
+<p>注册、发布与上架是 3 个不同的操作，其含义与操作路径如下。</p>
+
+<h3 id="注册">注册</h3>
+<div class="panel"><strong>注册</strong> 指的是将你的 Java 应用 <strong>注册</strong> 到 Aone 开放平台中生成一个 MCP Server（该 Server 默认情况下仅你可见）</div>
+<ul>
+  <li>注册到 Aone MCP 市场，详情请移步 <a href="https://open.aone.alibaba-inc.com/mcp/register">注册链接</a></li>
+</ul>
+
+<h3 id="发布">发布</h3>
+<div class="panel"><strong>发布</strong> 是指的是将 Java 应用（以及背后的 HSF 服务）<strong>发布</strong> 到生产环境，并将 MCP 工具元数据 <strong>发布</strong> 到 MCP 网关的生产环境</div>
+<ul>
+  <li>按常规流程发布你的 Java 应用到生产环境</li>
+  <li>前往 MCP Server 管理页面，进入 "发布" Tab，按流程完成工具发布</li>
+</ul>
+
+<h3 id="上架">上架</h3>
+<div class="panel"><strong>上架</strong> 是指将你的 MCP Server（默认只有你可见）<strong>上架</strong> 到 Aone MCP 市场，使得其他用户通过 MCP 市场（浏览或搜索）发现你的 MCP Server。</div>
+<ul>
+  <li>首次完成线上发布时，可直接进行上架。
+    <ul><li>上架前请检查开放范围，建议一开始开放给你所在团队，进行内部试用。</li></ul>
+  </li>
+  <li>其他情况下，请前往 MCP Server "设置" 页面进行上架操作</li>
+</ul>
+
+<h2 id="advanced">进阶用法</h2>
+
+<h3 id="calltool-拦截器">CallTool 拦截器</h3>
+
+<p>你可以实现 <code>ToolInterceptor</code> 接口来添加工具调用的拦截器。在拦截器中，你可以对原始请求和响应结果进行自定义的处理。</p>
+
+<pre><span class="k">import</span> com.alibaba.mcp.lite.spec.LiteMcpSchema;
+<span class="k">import</span> com.alibaba.mcp.lite.tool.ToolInterceptor;
+<span class="k">import</span> org.springframework.stereotype.Component;
+
+<span class="k">@Component</span>
+<span class="k">public class</span> ToolInterceptorA <span class="k">implements</span> ToolInterceptor {
+    <span class="k">@Override</span>
+    <span class="k">public void</span> preHandle(LiteMcpSchema.CallToolRequest request) <span class="k">throws</span> Exception {
+        <span class="c">// your process here, invoked before the actual tool call</span>
+    }
+
+    <span class="k">@Override</span>
+    <span class="k">public void</span> postHandle(LiteMcpSchema.CallToolRequest request, LiteMcpSchema.CallToolResult result) <span class="k">throws</span> Exception {
+        <span class="c">// your process here, invoked after the tool call has been completed</span>
+    }
+}</pre>
+
+<p>配置多个拦截器时，可通过 <a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/core/annotation/Order.html">@Order</a> 指定拦截器的顺序：</p>
+
+<pre><span class="k">@Component</span>
+<span class="k">@Order</span>(<span class="n">1</span>)
+<span class="k">public class</span> InterceptorA <span class="k">implements</span> ToolInterceptor { }
+
+<span class="k">@Component</span>
+<span class="k">@Order</span>(<span class="n">2</span>)
+<span class="k">public class</span> InterceptorB <span class="k">implements</span> ToolInterceptor { }</pre>
+
+<p>例如，上面配置了 A（order=1）和 B（order=2）两个拦截器，相关方法的执行顺序为：</p>
+<p><code>A.preHandle -&gt; B.preHandle -&gt; tool call -&gt; B.postHandle -&gt; A.postHandle</code></p>
+
+<h3 id="配置-hsf-调用方白名单">配置 HSF 调用方白名单</h3>
+
+<p>默认情况下，mcp-lite-hsf-server-starter 发布的 HSF 服务仅支持从 Aone MCP 网关（应用名：mcp-server-center）进行调用。你可以使用下面的配置调整调用方白名单：</p>
+
+<pre><span class="c"># 支持配置授权 mcp-server-center 以外的调用方应用</span>
+<span class="c"># 例如配置 hsfops，方便从 HSF 控制台进行调试</span>
+<span class="k">mcp.hsf.server.authorized-clients[0]</span>=hsfops</pre>
+
+<h3 id="不建议使用-hsf-多单元注册">[不建议使用] HSF 多单元注册</h3>
+
+<div class="panel">
+不建议使用 HSF 多单元注册，请使用 <a href="hsf-multi-env.html">HSF 多套环境适配方案</a> 代替。
+</div>
+
+<p><del>目前 Aone MCP 网关仅部署在<a href="https://hsf.alibaba-inc.com/hsfops/v2/env">中心预发 / 中心线上环境</a>，如果你的应用机器部署在其他环境，需要配置 HSF 多单元注册，配置方式如下：</del></p>
+
+<pre><span class="c"># application-staging.properties</span>
+<span class="c"># 预发注册到 pre</span>
+<span class="k">mcp.hsf.server.config-centers[0]</span>=pre
+
+<span class="c"># application-production.properties</span>
+<span class="c"># 线上注册到 sh</span>
+<span class="k">mcp.hsf.server.config-centers[0]</span>=sh</pre>
+
+<p><del>多单元注册 HSF 文档地址：<a href="https://mw.alibaba-inc.com/hsf/features-usage/cross-unit-invoke#%E5%A4%9A%E6%B3%A8%E5%86%8C%E9%85%8D%E7%BD%AE%E6%96%B9%E6%B3%95">多注册配置方法</a></del></p>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#starter-intro">mcp-lite-hsf-server-starter</a>
+        <ol>
+          <li><a href="#特性">特性</a></li>
+          <li><a href="#限制">限制</a></li>
+        </ol>
+      </li>
+      <li><a href="#import-starter">引入 starter</a>
+      </li>
+      <li><a href="#config-properties">配置 application.properties</a>
+      </li>
+      <li><a href="#compiler-plugin">编译插件配置</a>
+      </li>
+      <li><a href="#develop-tool">开发 tool</a>
+        <ol>
+          <li><a href="#java-代码示例">Java 代码示例</a></li>
+          <li><a href="#注解介绍">注解介绍</a></li>
+          <li><a href="#调用工具上下文">调用工具上下文</a></li>
+        </ol>
+      </li>
+      <li><a href="#debug">调试</a>
+        <ol>
+          <li><a href="#预发调试">预发调试</a></li>
+        </ol>
+      </li>
+      <li><a href="#register-publish">注册、发布与上架</a>
+        <ol>
+          <li><a href="#注册">注册</a></li>
+          <li><a href="#发布">发布</a></li>
+          <li><a href="#上架">上架</a></li>
+        </ol>
+      </li>
+      <li><a href="#advanced">进阶用法</a>
+        <ol>
+          <li><a href="#calltool-拦截器">CallTool 拦截器</a></li>
+          <li><a href="#配置-hsf-调用方白名单">配置 HSF 调用方白名单</a></li>
+          <li><a href="#不建议使用-hsf-多单元注册">[不建议使用] HSF 多单元注册</a></li>
+        </ol>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

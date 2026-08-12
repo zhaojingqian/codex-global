@@ -1,0 +1,4 @@
+interface:
+  display_name: "DPH Schema-Aware Data Viewer"
+  short_description: "Generate indexed local viewers through DPH"
+  default_prompt: "Use $schema-aware-data-viewer to generate a DPH viewer for this indexed local dataset."

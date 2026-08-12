@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../assets/docs.css">
+<title>HSF 多套环境适配方案</title>
+</head>
+<body>
+<main>
+
+<nav class="breadcrumbs" aria-label="面包屑">
+  <a href="../index.html">文档首页</a>
+  <span class="sep">/</span>
+  <a href="java-handbook.html">Java Aone MCP 研发手册</a>
+  <span class="sep">/</span>
+  <span>HSF 多套环境适配方案</span>
+</nav>
+
+<h1>HSF 多套环境适配方案</h1>
+<div class="meta">作者: 飞超 · 更新时间: 2026-04-27</div>
+<div class="panel">注意：本方案要求 mcp-lite-hsf-server-starter <code>1.0.8</code> 或更高版本</div>
+
+<h2 id="background">背景</h2>
+
+<p>app-center 应用部署在多套环境（以 production 环境级别为例，app-center 有灰度环境、正式环境、多套正式环境）。发布 HSF 服务时，<strong>多个应用分组会将 HSF 服务发布到同一个 HSF 环境分组</strong>。从 MCP 网关发起调用时，HSF 框架会随机选择一台机器，导致调用结果是随机的。</p>
+
+<p><a href="https://mw.alibaba-inc.com/hsf/features-usage/governance/route-rule">HSF 路由规则</a>可以支持在调用阶段根据自定义策略决定路由至 Provider 指定机器分组，但需要在 HSF 控制台维护额外的 groovy 脚本。咨询了 HSF 侧的项升同学，他不建议使用路由规则，而是建议根据环境或应用分组发布不同的 HSF 服务。</p>
+
+<h2 id="solution">解决方案</h2>
+
+<ul>
+  <li>mcp-lite-hsf-server-starter 新增配置项 <code>mcp.hsf.server.use-app-group-as-name=true</code>（默认为 false）
+    <ul>
+      <li>starter 识别该配置，根据 <code>SIGMA_APP_GROUP</code> 环境变量（对应 Aone 应用分组名称）来发布 HSF 服务</li>
+      <li>也就是说，该配置为 true 时，不同应用分组将发布不同的 HSF 服务</li>
+    </ul>
+  </li>
+  <li>MCP Server 新增配置项 <code>hsf.app-group</code>，让开发者指定对应的应用分组</li>
+</ul>
+
+<h2 id="config-flow">配置流程</h2>
+
+<ul>
+  <li>升级 <a href="https://artlab.alibaba-inc.com/GAResult?GroupId=com.alibaba.mcp&Artifact=mcp-lite-hsf-server-starter">mcp-lite-hsf-server-starter</a> 到 <code>1.0.8</code> 或更高版本</li>
+  <li>在应用的 application.properties 新增配置 <code>mcp.hsf.server.use-app-group-as-name=true</code></li>
+  <li>前往开放平台，打开 MCP Server 的设置页面，在选项中填写 Aone 应用分组名称，<strong>注意预发和线上环境需要分别填写</strong></li>
+</ul>
+
+<h2 id="examples">场景举例</h2>
+
+<h3 id="case1-aone-应用中心">case1：Aone 应用中心</h3>
+
+<p>app-center（Aone 应用中心）在 <strong>HSF 中心环境分组</strong>下，有多个应用环境和应用分组（灰度、热备、正式），但其中只有正式环境下的分组可以提供有效且稳定的 MCP 工具。为了确保工具调用结果的稳定性，Aone 应用中心采用了以下配置：</p>
+
+<pre><span class="c"># Spring 应用配置</span>
+<span class="k">mcp.hsf.server.use-app-group-as-name</span>=<span class="b">true</span>
+
+<span class="c"># MCP Server 选项（预发环境）</span>
+<span class="k">hsf.app-group</span>=app-center_prehost
+
+<span class="c"># MCP Server 选项（正式环境）</span>
+<span class="k">hsf.app-group</span>=app-centerhost</pre>
+
+<h3 id="case2-工单平台">case2：工单平台</h3>
+
+<p><a href="https://tickets.alibaba-inc.com">工单平台</a>通过一个 Aone 应用 + 多个应用分组来承载内部工单和外部工单。</p>
+
+<p>工单平台提供了两个 MCP Server，分别用于内部工单场景和外部工单场景，并通过以下配置 "绑定" MCP Server 与应用分组。</p>
+
+<pre><span class="c"># Spring 应用配置</span>
+<span class="k">mcp.hsf.server.use-app-group-as-name</span>=<span class="b">true</span>
+
+<span class="c"># 内部 "workorder工单平台MCP" 的配置</span>
+<span class="k">hsf.app-group</span>=ticketshost
+
+<span class="c"># 外部 "tickets工单平台" 的配置</span>
+<span class="k">hsf.app-group</span>=tickets_outer_prod_host</pre>
+
+<h2 id="advanced">进阶方案</h2>
+
+<p>在前面的方案中，一个 MCP Server 只能关联一个应用分组，且开发者需要提前在开放平台中指定分组。而在一些更为复杂场景（例如 <a href="https://alidocs.dingtalk.com/i/nodes/N7dx2rn0JbxOaqnACq45bYoyWMGjLRb3">AIDC WorkAI 多租户场景</a>）中，开发者期望在创建 MCP 会话时，或是在调用 MCP 工具时，动态指定 HSF 调用的目标应用分组。</p>
+
+<p>为此，我们提供了更加灵活的 "路由规则" 能力，允许开发者动态指定应用分组，同时支持了 HSF 跨单元调用。</p>
+
+<h3 id="配置流程">配置流程</h3>
+
+<h4>Step-1 应用配置</h4>
+<ul>
+  <li>升级 mcp-lite-hsf-server-starter 到 <code>1.0.8</code> 或更高版本</li>
+  <li>在 application.properties 新增配置 <code>mcp.hsf.server.use-app-group-as-name=true</code></li>
+</ul>
+
+<h4>Step-2 开放平台配置</h4>
+
+<p>开发者前往 Aone 开放平台，为 MCP Server 声明多个路由规则，语法如下：</p>
+<ul>
+  <li><code>hsf.route.rules.&lt;rule&gt;.configserver-center=注册中心</code> — configserver-center 可选，不填表示不进行跨单元调用</li>
+  <li><code>hsf.route.rules.&lt;rule&gt;.app-group=应用分组</code> — app-group 必填，填写对应的 Aone 应用分组名称</li>
+</ul>
+
+<p>AIDC WorkAI 多租户场景示例：</p>
+
+<pre><span class="c"># 定义三个路由规则名称： lazada_sg_route, daraz_sg_route, arise_de_route</span>
+<span class="k">hsf.route.rules.lazada_sg_route.configserver-center</span>=rg-sg-pre
+<span class="k">hsf.route.rules.lazada_sg_route.app-group</span>=logistics-lbs-management_rg_sg_lazada-os30-pre_prehost
+<span class="k">hsf.route.rules.daraz_sg_route.configserver-center</span>=rg-sg-pre
+<span class="k">hsf.route.rules.daraz_sg_route.app-group</span>=logistics-lbs-management_rg_sg_daraz-os30-pre_prehost
+<span class="k">hsf.route.rules.arise_de_route.configserver-center</span>=rg-de-2-pre
+<span class="k">hsf.route.rules.arise_de_route.app-group</span>=logistics-lbs-management_rg_de_2_arise-de46-pre_prehost
+
+<span class="c"># 默认的路由规则，当规则数量大于 1 时，必须指定该配置项</span>
+<span class="k">hsf.route.default-rule</span>=lazada_sg_route</pre>
+
+<div class="panel small">注意：修改 configserver-center 后，可能无法立即生效。如果配置不生效，请联系当前文档的负责同学重启网关服务。</div>
+
+<h3 id="创建会话">创建会话</h3>
+
+<p>【该能力暂未支持】你可以通过 MCP 连接地址的 URL 参数指定路由规则：</p>
+<p><code>https://mcp.alibaba-inc.com/some-server/sse?hsfRouteRule=arise_de_route</code></p>
+
+<h3 id="工具调用">工具调用</h3>
+
+<p>在调用工具时，客户端可以通过 _meta.hsfRouteRule 指定本次调用使用的 rule：</p>
+
+<p>如果无法传递自定义的 _meta 字段，你也可以通过 arguments 中的 <code>"_meta.hsfRouteRule"</code> 进行指定：</p>
+
+<pre>{
+  <span class="k">"method"</span>: <span class="s">"tools/call"</span>,
+  <span class="k">"params"</span>: {
+    <span class="k">"name"</span>: <span class="s">"tool_name"</span>,
+    <span class="k">"arguments"</span>: {
+      <span class="c">// 正常的工具参数</span>
+      <span class="k">"arg1"</span>: <span class="s">"value1"</span>,
+      <span class="k">"arg2"</span>: <span class="n">12345</span>,
+
+      <span class="c">// 指定所要使用的路由规则</span>
+      <span class="k">"_meta.hsfRouteRule"</span>: <span class="s">"lazada_sg_route"</span>,
+
+      <span class="c">// 添加任意业务数据（将通过 HSF RPCContext 传递给下游）</span>
+      <span class="k">"_meta.hsfAttachments"</span>: { <span class="k">"_GL_K"</span>: <span class="s">"LAZADA_SG"</span> }
+    }
+  }
+}</pre>
+
+<p>如果没有提供 hsfRouteRule，或者提供的 hsfRouteRule 不是一个有效的规则，则 MCP 网关将使用 <code>hsf.route.default-rule</code> 作为本次调用的路由规则。</p>
+
+<h2 id="references">参考文档</h2>
+
+<ul>
+  <li><a href="https://mw.alibaba-inc.com/hsf/features-usage/cross-unit-invoke">HSF 跨单元调用</a></li>
+  <li><a href="https://mw.alibaba-inc.com/hsf/features-usage/rpc-context/">HSF RPC Context</a></li>
+</ul>
+
+</main>
+
+<aside class="toc-aside">
+  <nav class="toc" aria-label="目录">
+    <div class="toc-title">目录</div>
+    <ol>
+      <li><a href="#background">背景</a>
+      </li>
+      <li><a href="#solution">解决方案</a>
+      </li>
+      <li><a href="#config-flow">配置流程</a>
+      </li>
+      <li><a href="#examples">场景举例</a>
+        <ol>
+          <li><a href="#case1-aone-应用中心">case1：Aone 应用中心</a></li>
+          <li><a href="#case2-工单平台">case2：工单平台</a></li>
+        </ol>
+      </li>
+      <li><a href="#advanced">进阶方案</a>
+        <ol>
+          <li><a href="#配置流程">配置流程</a></li>
+          <li><a href="#创建会话">创建会话</a></li>
+          <li><a href="#工具调用">工具调用</a></li>
+        </ol>
+      </li>
+      <li><a href="#references">参考文档</a>
+      </li>
+    </ol>
+  </nav>
+</aside>
+</body>
+</html>

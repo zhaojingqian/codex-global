@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Work Review"
+  short_description: "Archive periodic audits and measure improvements"
+  default_prompt: "Use $codex-work-review to archive this review and compare it with the previous period."
