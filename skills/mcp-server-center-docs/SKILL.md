@@ -1,8 +1,9 @@
 ---
 name: mcp-server-center-docs
-version: 0.1.2
 description: Aone MCP 网关开发文档：开发/接入 MCP Server、鉴权（OAuth/Private Token/BUC SSO）、MCP-Lite 协议、发布调试、质量扫描。提到 Interface Transform/Zetta/x-zetta- 时不适用（走 Zetta 文档）。
-x-source: aone-open
+metadata:
+  version: "0.1.2"
+  x-source: aone-open
 ---
 
 # Aone MCP 网关开发者文档

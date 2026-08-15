@@ -1,6 +1,6 @@
 ---
 name: codex-work-review
-description: Run and archive periodic Codex work-system audits: immutable snapshots, metrics, append-only intervention ledger. Use for monthly/weekly reviews, measuring past optimizations, detecting recurring failures.
+description: "Run and archive periodic Codex work-system audits: immutable snapshots, metrics, append-only intervention ledger. Use for monthly/weekly reviews, measuring past optimizations, detecting recurring failures."
 ---
 
 # Codex Work Review

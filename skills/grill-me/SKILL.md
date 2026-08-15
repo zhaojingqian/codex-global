@@ -1,7 +1,6 @@
 ---
 name: grill-me
-description: A relentless interview to sharpen a plan or design.
-disable-model-invocation: true
+description: Explicit wrapper for the grilling skill. Use only when the user invokes `$grill-me` or `/grill-me`.
 ---
 
 Run a `/grilling` session.
